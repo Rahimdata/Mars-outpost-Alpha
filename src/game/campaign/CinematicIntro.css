@@ -1,0 +1,897 @@
+.cinematic {
+  --cinematic-accent: #e88a68;
+  position: relative;
+  isolation: isolate;
+  display: flex;
+  min-height: calc(100svh - 87px);
+  flex-direction: column;
+  overflow: hidden;
+  color: #f4f0ed;
+  background:
+    radial-gradient(ellipse at 50% 85%, rgb(147 67 52 / 42%), transparent 48%),
+    linear-gradient(180deg, #070b14 0%, #171522 45%, #663d3c 100%);
+}
+
+.cinematic-art,
+.cinematic-art > * {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.cinematic-art {
+  z-index: -1;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at 50% 58%, rgb(226 118 84 / 13%), transparent 45%),
+    linear-gradient(180deg, #070b14 0%, #151522 58%, #633e3d 100%);
+  animation: cinematic-scene-breathe 18s ease-in-out infinite alternate;
+}
+
+.cinematic-stars {
+  opacity: 0.75;
+  background-image:
+    radial-gradient(1px 1px at 7% 14%, #fff 90%, transparent),
+    radial-gradient(1px 1px at 18% 32%, #fff 90%, transparent),
+    radial-gradient(1px 1px at 31% 11%, #fff 90%, transparent),
+    radial-gradient(1.5px 1.5px at 43% 24%, #fff 90%, transparent),
+    radial-gradient(1px 1px at 59% 9%, #fff 90%, transparent),
+    radial-gradient(1px 1px at 71% 28%, #fff 90%, transparent),
+    radial-gradient(1.5px 1.5px at 84% 13%, #fff 90%, transparent),
+    radial-gradient(1px 1px at 94% 38%, #fff 90%, transparent),
+    radial-gradient(1px 1px at 12% 63%, #fff 90%, transparent),
+    radial-gradient(1px 1px at 37% 49%, #fff 90%, transparent),
+    radial-gradient(1px 1px at 66% 57%, #fff 90%, transparent),
+    radial-gradient(1px 1px at 89% 68%, #fff 90%, transparent);
+  background-size: 100% 100%;
+  animation: cinematic-stars-twinkle 5s ease-in-out infinite alternate;
+}
+
+.cinematic-earth,
+.cinematic-mars {
+  inset: auto;
+  position: absolute;
+  z-index: 1;
+  width: clamp(190px, 27vw, 390px);
+  aspect-ratio: 1;
+  border-radius: 50%;
+  opacity: 0;
+  transform: scale(0.78);
+  transition:
+    opacity 1.4s ease,
+    transform 2s cubic-bezier(0.2, 0.75, 0.25, 1);
+  background-position: center;
+  background-size: cover;
+  box-shadow:
+    inset -32px -12px 55px rgb(0 0 0 / 82%),
+    inset 9px 4px 24px rgb(255 255 255 / 12%),
+    0 0 35px rgb(100 160 255 / 14%);
+}
+
+.cinematic-earth {
+  top: 17%;
+  right: 13%;
+  background-image: url("/assets/earth-blue-marble.jpg");
+  box-shadow:
+    inset -32px -12px 55px rgb(0 0 0 / 82%),
+    inset 9px 4px 24px rgb(255 255 255 / 12%),
+    0 0 0 2px rgb(137 205 255 / 12%),
+    0 0 42px rgb(79 160 255 / 25%);
+}
+
+.cinematic-mars {
+  top: 20%;
+  right: 12%;
+  background-image: url("/assets/mars-globe.jpg");
+  box-shadow:
+    inset -32px -12px 55px rgb(0 0 0 / 82%),
+    inset 9px 4px 24px rgb(255 255 255 / 12%),
+    0 0 0 2px rgb(255 161 106 / 12%),
+    0 0 48px rgb(226 99 55 / 25%);
+}
+
+.cinematic-art--journey .cinematic-earth,
+.cinematic-art--mission .cinematic-earth {
+  opacity: 1;
+  transform: scale(1);
+  animation: cinematic-earth-turn 70s linear infinite;
+}
+
+.cinematic-art--approach .cinematic-mars,
+.cinematic-art--descent .cinematic-mars,
+.cinematic-art--surface .cinematic-mars {
+  opacity: 1;
+  transform: scale(1);
+  animation: cinematic-mars-turn 85s linear infinite;
+}
+
+.cinematic-art--crew .cinematic-earth {
+  top: 12%;
+  right: 8%;
+  opacity: 0.38;
+  transform: scale(0.78);
+}
+
+.cinematic-art--crew .cinematic-mars {
+  top: 18%;
+  right: 8%;
+  opacity: 0.2;
+  transform: scale(0.7);
+}
+
+.cinematic-horizon {
+  top: auto;
+  bottom: -10%;
+  height: 42%;
+  opacity: 0.92;
+  background:
+    radial-gradient(ellipse at 68% 0%, rgb(238 135 97 / 32%), transparent 36%),
+    linear-gradient(175deg, transparent 0 16%, #4b3036 16.2% 27%, transparent 27.2%),
+    linear-gradient(180deg, #9a5c4d 0%, #59363a 48%, #17151f 100%);
+  clip-path: polygon(0 35%, 18% 22%, 36% 29%, 52% 13%, 69% 25%, 84% 17%, 100% 31%, 100% 100%, 0 100%);
+  animation: cinematic-horizon-drift 18s ease-in-out infinite alternate;
+}
+
+.cinematic-art--journey .cinematic-horizon,
+.cinematic-art--mission .cinematic-horizon,
+.cinematic-art--crew .cinematic-horizon {
+  opacity: 0.25;
+  transform: translateY(22%);
+}
+
+.cinematic-art--approach .cinematic-horizon {
+  opacity: 0.65;
+  transform: translateY(8%);
+}
+
+.cinematic-art--descent .cinematic-horizon,
+.cinematic-art--surface .cinematic-horizon {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.cinematic-craft {
+  z-index: 3;
+  inset: auto;
+  top: 43%;
+  left: 66%;
+  width: clamp(130px, 17vw, 230px);
+  height: 78px;
+  opacity: 0;
+  transform: translate(-50%, -50%) rotate(-8deg) scale(0.65);
+  filter: drop-shadow(0 12px 10px rgb(0 0 0 / 55%));
+}
+
+.cinematic-art--journey .cinematic-craft,
+.cinematic-art--mission .cinematic-craft,
+.cinematic-art--approach .cinematic-craft,
+.cinematic-art--descent .cinematic-craft {
+  opacity: 1;
+  animation: cinematic-craft-flight 12s ease-in-out infinite;
+}
+
+.craft-body {
+  position: absolute;
+  z-index: 2;
+  top: 26px;
+  left: 35%;
+  width: 35%;
+  height: 24px;
+  border: 1px solid rgb(255 255 255 / 65%);
+  border-radius: 48% 15% 15% 48%;
+  background: linear-gradient(180deg, #f1eee7, #86919a 58%, #424a56);
+  box-shadow: inset 0 2px 4px rgb(255 255 255 / 55%);
+}
+
+.craft-body::after {
+  position: absolute;
+  top: 6px;
+  left: 40%;
+  width: 18%;
+  height: 8px;
+  border-radius: 50%;
+  background: #8bd9ea;
+  content: "";
+  box-shadow: 0 0 9px rgb(105 214 240 / 85%);
+}
+
+.craft-wing {
+  position: absolute;
+  top: 20px;
+  width: 34%;
+  height: 35px;
+  border: 1px solid #7fc8df;
+  background:
+    repeating-linear-gradient(90deg, transparent 0 10px, rgb(174 231 247 / 56%) 11px 12px),
+    repeating-linear-gradient(0deg, #17345a 0 10px, #4b7792 11px 12px);
+  box-shadow: 0 0 8px rgb(76 186 231 / 24%);
+}
+
+.craft-wing--left {
+  left: 0;
+  transform: skewY(-12deg);
+}
+
+.craft-wing--right {
+  right: 0;
+  transform: skewY(12deg);
+}
+
+.craft-engine {
+  position: absolute;
+  top: 32px;
+  left: 18%;
+  width: 22%;
+  height: 10px;
+  border-radius: 50%;
+  background: #ffb57b;
+  filter: blur(5px);
+  box-shadow: 0 0 20px 8px rgb(255 128 74 / 45%);
+  animation: cinematic-engine-pulse 1.6s ease-in-out infinite alternate;
+}
+
+.crew-portrait {
+  position: absolute;
+  z-index: 2;
+  inset: auto 12% 3% auto;
+  width: clamp(190px, 25vw, 340px);
+  height: min(66vh, 540px);
+  opacity: 0;
+  transform: translateY(35px) scale(0.96);
+  transform-origin: bottom center;
+  filter: drop-shadow(0 18px 18px rgb(0 0 0 / 35%));
+  transition:
+    opacity 800ms ease,
+    transform 1.2s cubic-bezier(0.2, 0.75, 0.25, 1);
+}
+
+.cinematic-art--crew .crew-portrait {
+  opacity: 1;
+  transform: translateY(0) scale(1);
+  animation: cinematic-astronaut-breathe 5s ease-in-out infinite;
+}
+
+.crew-portrait::before {
+  position: absolute;
+  z-index: 2;
+  top: 7%;
+  left: 19%;
+  width: 62%;
+  aspect-ratio: 1;
+  border: 7px solid #d9d7cc;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 35% 25%, rgb(255 255 255 / 22%), transparent 26%),
+    linear-gradient(140deg, rgb(115 194 213 / 88%), rgb(21 42 65 / 96%) 68%);
+  box-shadow:
+    inset -14px -8px 24px rgb(0 0 0 / 55%),
+    inset 4px 3px 7px rgb(255 255 255 / 28%),
+    0 0 0 2px rgb(255 255 255 / 35%),
+    0 0 30px rgb(102 192 222 / 18%);
+  content: "";
+}
+
+.crew-portrait::after {
+  position: absolute;
+  z-index: 1;
+  top: 42%;
+  left: 8%;
+  width: 84%;
+  height: 58%;
+  border: 1px solid rgb(255 255 255 / 38%);
+  border-radius: 40% 40% 12% 12%;
+  background:
+    linear-gradient(90deg, transparent 0 16%, #cf6e4e 16% 20%, transparent 20% 80%, #cf6e4e 80% 84%, transparent 84%),
+    linear-gradient(180deg, #eee9de 0%, #aeb5b5 52%, #747f87 100%);
+  clip-path: polygon(23% 0, 77% 0, 100% 28%, 94% 100%, 6% 100%, 0 28%);
+  box-shadow: inset 0 10px 20px rgb(255 255 255 / 20%);
+  content: "";
+}
+
+.crew-portrait .head,
+.crew-portrait .hair,
+.crew-portrait .glasses,
+.crew-portrait .neck {
+  display: none;
+}
+
+.crew-portrait .suit {
+  position: absolute;
+  z-index: 3;
+  top: 59%;
+  left: 38%;
+  width: 24%;
+  height: 12%;
+  border: 1px solid rgb(255 255 255 / 35%);
+  border-radius: 4px;
+  background:
+    radial-gradient(circle at 28% 35%, #8fe5df 0 3px, transparent 4px),
+    radial-gradient(circle at 70% 35%, #f8c46a 0 3px, transparent 4px),
+    linear-gradient(180deg, #394651, #161f2b);
+  box-shadow: 0 2px 8px rgb(0 0 0 / 45%);
+}
+
+.crew-portrait .stripe,
+.crew-portrait .toolbelt,
+.crew-portrait .headset {
+  display: none;
+}
+
+.cinematic-vignette {
+  z-index: 5;
+  background:
+    linear-gradient(90deg, rgb(7 9 15 / 43%), transparent 38%, transparent 72%, rgb(7 9 15 / 12%)),
+    linear-gradient(0deg, rgb(8 9 15 / 45%), transparent 28%, transparent 78%, rgb(8 9 15 / 22%));
+}
+
+.cinematic-header,
+.cinematic-content,
+.cinematic-controls,
+.cinematic-footer {
+  position: relative;
+  z-index: 10;
+}
+
+.cinematic-header {
+  flex: 0 0 auto;
+}
+
+.cinematic-content {
+  flex: 1 1 auto;
+}
+
+.cinematic-controls,
+.cinematic-footer {
+  flex: 0 0 auto;
+}
+
+@keyframes cinematic-scene-breathe {
+  from { background-position: 48% 50%; }
+  to { background-position: 52% 48%; }
+}
+
+@keyframes cinematic-stars-twinkle {
+  from { opacity: 0.42; }
+  to { opacity: 0.95; }
+}
+
+@keyframes cinematic-earth-turn {
+  0% { background-position: 48% 50%; transform: scale(1) rotate(-2deg); }
+  50% { background-position: 53% 50%; transform: scale(1.025) rotate(1deg); }
+  100% { background-position: 48% 50%; transform: scale(1) rotate(-2deg); }
+}
+
+@keyframes cinematic-mars-turn {
+  0% { background-position: 48% 50%; transform: scale(1) rotate(2deg); }
+  50% { background-position: 53% 50%; transform: scale(1.025) rotate(-1deg); }
+  100% { background-position: 48% 50%; transform: scale(1) rotate(2deg); }
+}
+
+@keyframes cinematic-horizon-drift {
+  from { background-position: 0 0, 0 0, 0 0; }
+  to { background-position: 18px 0, 36px 0, 0 0; }
+}
+
+@keyframes cinematic-craft-flight {
+  0% { transform: translate(-55%, -48%) rotate(-8deg) scale(0.72); }
+  50% { transform: translate(-42%, -54%) rotate(-4deg) scale(0.78); }
+  100% { transform: translate(-55%, -48%) rotate(-8deg) scale(0.72); }
+}
+
+@keyframes cinematic-engine-pulse {
+  from { opacity: 0.55; transform: scaleX(0.85); }
+  to { opacity: 1; transform: scaleX(1.2); }
+}
+
+@keyframes cinematic-astronaut-breathe {
+  0%, 100% { margin-bottom: 0; }
+  50% { margin-bottom: 5px; }
+}
+
+@media (max-width: 760px) {
+  .cinematic {
+    min-height: 100svh;
+  }
+
+  .cinematic-earth,
+  .cinematic-mars {
+    top: 17%;
+    right: -13%;
+    width: clamp(170px, 52vw, 260px);
+  }
+
+  .cinematic-art--crew .cinematic-earth,
+  .cinematic-art--crew .cinematic-mars {
+    right: -18%;
+  }
+
+  .crew-portrait {
+    right: -3%;
+    width: min(54vw, 250px);
+    height: min(48vh, 390px);
+    opacity: 0.72;
+  }
+
+  .cinematic-craft {
+    top: 38%;
+    left: 68%;
+    width: 130px;
+  }
+
+  .cinematic-vignette {
+    background:
+      linear-gradient(90deg, rgb(7 9 15 / 42%), transparent 75%),
+      linear-gradient(0deg, rgb(8 9 15 / 48%), transparent 35%);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}
+/* Intro layout recovery and visual fixes */
+.cinematic {
+  min-height: max(620px, calc(100svh - 80px));
+  background: #11131b;
+}
+
+.cinematic-header {
+  position: absolute;
+  z-index: 20;
+  inset: 0 0 auto;
+  height: 72px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  padding: 0 clamp(24px, 5vw, 80px);
+  border-bottom: 1px solid rgb(255 255 255 / 12%);
+  background: rgb(15 17 25 / 72%);
+  backdrop-filter: blur(14px);
+}
+
+.cinematic-brand {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  letter-spacing: 0.14em;
+}
+
+.cinematic-brand-mark {
+  width: 34px;
+  height: 34px;
+  flex: 0 0 auto;
+  border: 1px solid #e88a68;
+  border-radius: 50%;
+  box-shadow: inset 0 0 0 6px #171923, inset 0 0 0 7px #e88a68;
+}
+
+.cinematic-brand strong,
+.cinematic-brand small {
+  display: block;
+}
+
+.cinematic-brand strong {
+  font-size: 13px;
+}
+
+.cinematic-brand small,
+.cinematic-header-status {
+  color: #aaaab2;
+  font-size: 9px;
+  letter-spacing: 0.14em;
+}
+
+.cinematic-header-status {
+  margin-left: auto;
+}
+
+.cinematic-content {
+  position: absolute;
+  inset: 72px 0 110px;
+  width: min(1240px, calc(100% - 64px));
+  margin-inline: auto;
+  display: grid;
+  grid-template-columns: minmax(320px, 0.95fr) minmax(280px, 1.05fr);
+  align-items: center;
+  gap: clamp(24px, 5vw, 80px);
+  padding: 32px 0;
+  animation: intro-copy-arrive 700ms ease both;
+}
+
+.cinematic-copy {
+  position: relative;
+  z-index: 8;
+  max-width: 560px;
+}
+
+.cinematic-kicker,
+.cinematic-role {
+  margin: 0 0 14px;
+  color: #f08c68;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.18em;
+  text-transform: uppercase;
+}
+
+.cinematic-role {
+  color: #b9c5d3;
+  margin-top: -6px;
+}
+
+.cinematic-copy h1 {
+  max-width: 650px;
+  margin: 0 0 22px;
+  color: #f6f2ee;
+  font-size: clamp(38px, 5.2vw, 76px);
+  font-weight: 650;
+  letter-spacing: -0.055em;
+  line-height: 0.98;
+  text-wrap: balance;
+}
+
+.cinematic-campaign-title {
+  display: grid;
+  gap: 6px;
+  margin: 20px 0;
+  color: #f08c68;
+  font-size: 13px;
+  letter-spacing: 0.12em;
+}
+
+.cinematic-campaign-title span {
+  color: #c8c5c4;
+  font-size: 10px;
+}
+
+.cinematic-narrative {
+  max-width: 490px;
+  color: #d0cdd0;
+  font-size: clamp(14px, 1.15vw, 17px);
+  line-height: 1.8;
+}
+
+.cinematic-narrative p {
+  margin: 0 0 8px;
+}
+
+.crew-dialogue {
+  max-width: 440px;
+  margin: 24px 0 0;
+  padding-left: 16px;
+  border-left: 2px solid #e88a68;
+  color: #f1d9ce;
+  font-size: 15px;
+  font-style: italic;
+  line-height: 1.65;
+}
+
+.crew-dialogue span {
+  color: #e88a68;
+  font-size: 22px;
+}
+
+.crew-id-card {
+  position: relative;
+  z-index: 8;
+  justify-self: end;
+  align-self: end;
+  display: grid;
+  gap: 8px;
+  width: min(300px, 100%);
+  margin: 0 0 8%;
+  padding: 18px 20px;
+  border: 1px solid rgb(255 255 255 / 18%);
+  background: rgb(17 19 27 / 78%);
+  box-shadow: 0 18px 55px rgb(0 0 0 / 24%);
+  backdrop-filter: blur(14px);
+  animation: intro-copy-arrive 900ms ease both;
+}
+
+.crew-id-label {
+  color: #e88a68;
+  font-size: 9px;
+  letter-spacing: 0.15em;
+}
+
+.crew-id-card strong {
+  font-size: 19px;
+}
+
+.crew-id-card > span:last-child {
+  color: #c5c3c4;
+  font-size: 12px;
+}
+
+.arrival-message {
+  display: grid;
+  gap: 6px;
+  margin-top: 26px;
+  color: #f1a17d;
+  font-size: 12px;
+  letter-spacing: 0.16em;
+}
+
+.arrival-message span {
+  color: #e2d7d2;
+  font-size: 10px;
+}
+
+.cinematic-controls {
+  position: absolute;
+  z-index: 20;
+  inset: auto 0 0;
+  min-height: 92px;
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  align-items: center;
+  gap: 20px;
+  padding: 16px clamp(24px, 5vw, 80px);
+  border-top: 1px solid rgb(255 255 255 / 12%);
+  background: rgb(15 17 25 / 68%);
+  backdrop-filter: blur(14px);
+}
+
+.scene-progress {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  color: #e5e0df;
+  font-size: 11px;
+}
+
+.scene-progress i {
+  color: #88858b;
+  font-style: normal;
+}
+
+.progress-track {
+  width: min(180px, 18vw);
+  height: 3px;
+  overflow: hidden;
+  background: rgb(255 255 255 / 17%);
+}
+
+.progress-track span {
+  display: block;
+  height: 100%;
+  background: #e88a68;
+  transition: width 400ms ease;
+}
+
+.scene-controls {
+  display: flex;
+  gap: 10px;
+}
+
+.skip-button,
+.previous-button,
+.continue-button {
+  min-height: 40px;
+  padding: 0 16px;
+  border: 1px solid rgb(255 255 255 / 24%);
+  color: #f4f0ed;
+  font: inherit;
+  font-size: 12px;
+  cursor: pointer;
+  transition: background 180ms ease, border-color 180ms ease, transform 180ms ease;
+}
+
+.skip-button {
+  background: transparent;
+}
+
+.previous-button {
+  background: rgb(255 255 255 / 5%);
+}
+
+.continue-button {
+  border-color: #e88a68;
+  background: #e88a68;
+  color: #17131a;
+  font-weight: 700;
+}
+
+.skip-button:hover,
+.previous-button:hover,
+.continue-button:hover {
+  transform: translateY(-2px);
+  border-color: #ffb08e;
+}
+
+.continue-button:hover {
+  background: #f29a78;
+}
+
+.previous-button:disabled {
+  opacity: 0.4;
+  cursor: default;
+  transform: none;
+}
+
+.keyboard-hint {
+  justify-self: end;
+  margin: 0;
+  color: #aaaab2;
+  font-size: 9px;
+  letter-spacing: 0.1em;
+}
+
+.status-dot {
+  display: inline-block;
+  width: 6px;
+  height: 6px;
+  margin-right: 8px;
+  border-radius: 50%;
+  background: #8acb91;
+  box-shadow: 0 0 10px rgb(138 203 145 / 60%);
+}
+
+/* Keep a visible planet even while you check the image files. */
+.cinematic-earth {
+  background-color: #15334e;
+  background-image:
+    radial-gradient(circle at 33% 30%, rgb(255 255 255 / 24%), transparent 18%),
+    radial-gradient(ellipse at 34% 44%, #69a66d 0 8%, transparent 9%),
+    radial-gradient(ellipse at 60% 62%, #9a9b68 0 10%, transparent 11%),
+    radial-gradient(circle at 36% 36%, #227cac, #102139 72%);
+}
+
+.cinematic-mars {
+  background-color: #a24e38;
+  background-image:
+    radial-gradient(circle at 32% 28%, rgb(255 221 178 / 28%), transparent 19%),
+    radial-gradient(ellipse at 60% 52%, #7d382f 0 8%, transparent 9%),
+    radial-gradient(ellipse at 38% 66%, #d48a5c 0 12%, transparent 13%),
+    radial-gradient(circle at 36% 34%, #d77b50, #642d31 76%);
+}
+
+/* Match the crew class names actually used by the component. */
+.crew-portrait .portrait-head {
+  position: absolute;
+  z-index: 3;
+  top: 15%;
+  left: 28%;
+  width: 44%;
+  height: 33%;
+  border: 7px solid #d9d7cc;
+  border-radius: 50%;
+  background:
+    radial-gradient(ellipse at 35% 25%, rgb(255 255 255 / 24%), transparent 25%),
+    linear-gradient(140deg, #78b9c7, #172a40 70%);
+  box-shadow: inset -14px -8px 24px rgb(0 0 0 / 55%), 0 0 24px rgb(102 192 222 / 20%);
+}
+
+.crew-portrait .portrait-suit {
+  position: absolute;
+  z-index: 2;
+  top: 45%;
+  left: 8%;
+  width: 84%;
+  height: 58%;
+  overflow: hidden;
+  border: 1px solid rgb(255 255 255 / 38%);
+  border-radius: 40% 40% 12% 12%;
+  background:
+    linear-gradient(90deg, transparent 0 16%, #cf6e4e 16% 20%, transparent 20% 80%, #cf6e4e 80% 84%, transparent 84%),
+    linear-gradient(180deg, #eee9de, #aeb5b5 52%, #747f87);
+  clip-path: polygon(23% 0, 77% 0, 100% 28%, 94% 100%, 6% 100%, 0 28%);
+}
+
+.crew-portrait .portrait-stripe {
+  position: absolute;
+  top: 24%;
+  left: 38%;
+  width: 24%;
+  height: 16%;
+  border-radius: 4px;
+  background: #263743;
+  box-shadow: inset 0 0 0 2px rgb(255 255 255 / 22%);
+}
+
+.crew-portrait .portrait-hair,
+.crew-portrait .portrait-neck,
+.crew-portrait .portrait-glasses,
+.crew-portrait .portrait-toolbelt,
+.crew-portrait .portrait-headset {
+  display: none;
+}
+
+@keyframes intro-copy-arrive {
+  from { opacity: 0; transform: translateY(14px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+@media (max-width: 760px) {
+  .cinematic-header {
+    height: 64px;
+    padding-inline: 18px;
+  }
+
+  .cinematic-header-status {
+    display: none;
+  }
+
+  .cinematic-content {
+    inset: 64px 0 106px;
+    width: calc(100% - 36px);
+    grid-template-columns: 1fr;
+    align-content: center;
+    gap: 16px;
+    padding: 24px 0;
+  }
+
+  .cinematic-copy {
+    max-width: 580px;
+  }
+
+  .cinematic-copy h1 {
+    max-width: 440px;
+    font-size: clamp(36px, 11vw, 58px);
+  }
+
+  .cinematic-narrative {
+    max-width: 440px;
+    font-size: 14px;
+  }
+
+  .crew-id-card {
+    justify-self: start;
+    align-self: auto;
+    width: min(260px, 75%);
+    margin: 0;
+    padding: 12px 14px;
+  }
+
+  .cinematic-controls {
+    grid-template-columns: 1fr auto;
+    gap: 12px;
+    min-height: 96px;
+    padding: 12px 18px;
+  }
+
+  .scene-progress {
+    grid-column: 1 / -1;
+  }
+
+  .progress-track {
+    width: min(180px, 45vw);
+  }
+
+  .scene-controls {
+    justify-self: end;
+  }
+
+  .skip-button,
+  .previous-button,
+  .continue-button {
+    min-height: 36px;
+    padding-inline: 11px;
+  }
+
+  .keyboard-hint {
+    display: none;
+  }
+
+  .crew-portrait {
+    right: -12%;
+    opacity: 0.42;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cinematic *,
+  .cinematic *::before,
+  .cinematic *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+  }
+}

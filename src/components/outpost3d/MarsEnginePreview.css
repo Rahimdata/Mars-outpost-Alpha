@@ -1,0 +1,127 @@
+.mars-engine-preview {
+  display: flex;
+  width: 100%;
+  min-height: 100svh;
+  flex-direction: column;
+  color: #f0ede8;
+  background: #181a1f;
+}
+
+.mars-engine-preview__header {
+  display: flex;
+  min-height: 62px;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 10px clamp(16px, 3vw, 40px);
+  border-bottom: 1px solid rgb(255 255 255 / 12%);
+  background: #202228;
+}
+
+.mars-engine-preview__header > div {
+  display: grid;
+  gap: 5px;
+}
+
+.mars-engine-preview__header strong {
+  font-size: 10px;
+  letter-spacing: 0.15em;
+}
+
+.mars-engine-preview__header span {
+  color: #75c9c5;
+  font-size: 8px;
+  letter-spacing: 0.12em;
+}
+
+.mars-engine-preview__header button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 1px solid rgb(255 255 255 / 20%);
+  color: #eeeae4;
+  background: transparent;
+  cursor: pointer;
+}
+
+.mars-engine-preview__canvas {
+  position: relative;
+  flex: 1;
+  min-height: calc(100svh - 62px);
+  overflow: hidden;
+}
+
+.mars-engine-preview__canvas canvas {
+  display: block;
+  width: 100%;
+  height: 100%;
+  touch-action: none;
+}
+
+.mars-engine-preview__label {
+  position: absolute;
+  top: 20px;
+  left: 20px;
+  display: grid;
+  gap: 6px;
+  padding: 12px 14px;
+  border: 1px solid rgb(255 255 255 / 15%);
+  background: rgb(24 26 31 / 76%);
+  pointer-events: none;
+}
+
+.mars-engine-preview__label span {
+  color: #75c9c5;
+  font-size: 8px;
+  letter-spacing: 0.14em;
+}
+
+.mars-engine-preview__label strong {
+  font-size: 10px;
+  font-weight: 500;
+}
+
+.mars-engine-preview__hint {
+  position: absolute;
+  right: 18px;
+  bottom: 14px;
+  margin: 0;
+  padding: 9px 11px;
+  color: #f0ede8;
+  background: rgb(24 26 31 / 72%);
+  font-size: 9px;
+  pointer-events: none;
+}
+
+.mars-engine-preview__fallback {
+  display: grid;
+  min-height: calc(100svh - 62px);
+  place-items: center;
+  padding: 24px;
+  color: #f0ede8;
+  text-align: center;
+  background: #22242a;
+}
+
+@media (max-width: 600px) {
+  .mars-engine-preview__header {
+    min-height: 58px;
+    padding-inline: 12px;
+  }
+
+  .mars-engine-preview__header button {
+    font-size: 10px;
+  }
+
+  .mars-engine-preview__canvas {
+    min-height: calc(100svh - 58px);
+  }
+
+  .mars-engine-preview__fallback {
+    min-height: calc(100svh - 58px);
+  }
+
+  .mars-engine-preview__label {
+    top: 12px;
+    left: 12px;
+  }
+}

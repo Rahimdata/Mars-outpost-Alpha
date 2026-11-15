@@ -1,0 +1,38 @@
+.colony-management-backdrop { position: absolute; z-index: 6; inset: 0; display: grid; place-items: center; padding: clamp(10px, 3vw, 36px); background: rgb(12 14 18 / 76%); backdrop-filter: blur(7px); }
+.colony-management { display: grid; grid-template-rows: auto auto auto auto minmax(0, 1fr); gap: 12px; width: min(1040px, 100%); max-height: min(90svh, 820px); padding: clamp(14px, 2.4vw, 26px); overflow: auto; border: 1px solid rgb(133 206 199 / 38%); color: #e9e8e2; background: linear-gradient(145deg, rgb(25 31 34 / 98%), rgb(24 26 31 / 98%)); box-shadow: 0 24px 100px rgb(0 0 0 / 45%); }
+.colony-management__header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; }
+.colony-management__header small, .colony-management__content small { color: #80d7cf; font-size: 8px; letter-spacing: .14em; }
+.colony-management__header h2 { margin: 4px 0; color: #f3f0e8; font-size: clamp(20px, 3vw, 28px); }
+.colony-management__header p, .colony-management__content p { color: #bdbfba; font-size: 10px; line-height: 1.55; }
+.colony-management button { min-height: 33px; padding: 7px 10px; border: 1px solid rgb(137 207 199 / 30%); color: #dfeae6; background: rgb(255 255 255 / 4%); font: inherit; font-size: 9px; text-align: left; cursor: pointer; }
+.colony-management button:hover, .colony-management button[aria-pressed="true"] { border-color: #77d1c9; color: #9ee3dc; background: rgb(76 152 144 / 12%); }
+.colony-management__materials { display: flex; flex-wrap: wrap; gap: 7px; }
+.colony-management__materials span { padding: 7px 9px; border: 1px solid rgb(255 255 255 / 10%); color: #c5c5bf; font-size: 8px; }
+.colony-management__materials b { margin-left: 5px; color: #eee9df; }
+.colony-management__tabs { display: flex; flex-wrap: wrap; gap: 6px; border-bottom: 1px solid rgb(255 255 255 / 12%); }
+.colony-management__tabs button { border-bottom: 0; text-transform: uppercase; letter-spacing: .09em; }
+.colony-management__notice { margin: 0; padding: 8px 10px; border-left: 2px solid #82d6ce; color: #c4e8e2 !important; background: rgb(83 160 151 / 10%); }
+.colony-management__content { display: grid; grid-template-columns: minmax(190px, .78fr) minmax(0, 1.3fr); gap: 14px; min-height: 0; }
+.colony-management__building-list { display: grid; align-content: start; gap: 6px; }
+.colony-management__building-list button { display: grid; gap: 5px; }
+.colony-management__building-list strong { font-size: 10px; }
+.colony-management__building-list span, .colony-management__cost, .colony-management__footnote { color: #aeb5b2 !important; font-size: 8px !important; line-height: 1.5; }
+.colony-management__detail { display: grid; align-content: start; gap: 10px; padding: 14px; border: 1px solid rgb(255 255 255 / 10%); background: rgb(255 255 255 / 3%); }
+.colony-management__detail h3, .colony-management__resources h3, .colony-management__priorities h3, .colony-management__assignment h3 { margin: 0; color: #f1eee7; font-size: 14px; }
+.colony-management__stat { display: flex; justify-content: space-between; gap: 12px; padding: 8px 10px; border: 1px solid rgb(255 255 255 / 8%); color: #c8c9c2; font-size: 9px; }
+.colony-management__stat b { color: #e8e6de; text-align: right; }
+.colony-management__stack { grid-template-columns: 1fr; align-content: start; overflow: auto; }
+.colony-management__crop-list, .colony-management__expansions { display: grid; grid-template-columns: repeat(auto-fit, minmax(205px, 1fr)); gap: 8px; }
+.colony-management__crop-list article, .colony-management__expansions article, .colony-management__job, .colony-management__event, .colony-management__resources, .colony-management__priorities, .colony-management__assignment { display: grid; align-content: start; gap: 8px; padding: 11px; border: 1px solid rgb(255 255 255 / 10%); background: rgb(255 255 255 / 3%); }
+.colony-management__crop-list article strong, .colony-management__expansions article strong, .colony-management__job strong, .colony-management__event strong { color: #e9e8e2; font-size: 10px; }
+.colony-management__crop-list article span, .colony-management__expansions article span, .colony-management__job span { color: #aeb5b2; font-size: 8px; }
+.colony-management progress { width: 100%; accent-color: #75cbc2; }
+.colony-management__actions { display: flex; flex-wrap: wrap; gap: 6px; }
+.colony-management__progress { height: 7px; overflow: hidden; background: rgb(255 255 255 / 12%); }
+.colony-management__progress span { display: block; height: 100%; background: linear-gradient(90deg, #4e9b91, #8bdbcf); transition: width .3s linear; }
+.colony-management__priorities label { display: grid; grid-template-columns: minmax(120px, 1fr) minmax(100px, 2fr) 18px; align-items: center; gap: 10px; color: #c6c9c2; font-size: 9px; }
+.colony-management__priorities input { accent-color: #75cbc2; }
+.colony-management__resources small { color: #929d99; font-size: 8px; }
+.colony-management__event { border-color: rgb(222 166 107 / 42%); }
+.colony-management__event small { color: #e7b87e; }
+@media (max-width: 640px) { .colony-management { max-height: 94svh; } .colony-management__content { grid-template-columns: 1fr; } .colony-management__building-list { grid-template-columns: repeat(2, minmax(0, 1fr)); } .colony-management__building-list button { min-width: 0; } .colony-management__building-list strong { font-size: 8px; } }

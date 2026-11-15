@@ -44,6 +44,11 @@ const SOURCES = {
     title: 'Radiation Measurements on Mars',
     url: 'https://science.nasa.gov/resource/radiation-measurements-on-mars/',
   },
+  curiosityRadDataset: {
+    organization: 'NASA Planetary Data System · Planetary Plasma Interactions Node',
+    title: 'MSL RAD Reduced Data Records',
+    url: 'https://pds-ppi.igpp.ucla.edu/bundle/MSL-M-RAD-3-RDR-V1.0',
+  },
   dustStorms: {
     organization: 'NASA Science',
     title: 'Mars Report: Dust Storms on Mars',
@@ -236,17 +241,18 @@ export const SCIENCE_ENTRIES: ScienceEntry[] = [
     title: 'Two Sources of Space Radiation',
     category: 'radiation',
     summary: 'Mars surface radiation includes galactic cosmic rays and particles from the Sun.',
-    explanation: 'Curiosity’s Radiation Assessment Detector measures radiation at the surface. The radiation environment changes with atmospheric shielding and solar activity. Exposure planning is complex; this game’s protection percentage is a fictional index, not a dose or safety limit.',
+    explanation: 'Curiosity’s Radiation Assessment Detector (RAD) measured radiation at the Martian surface. During the rover’s first 10 months, NASA reported an average absorbed dose rate near 210 micrograys per day (μGy/day), with variation over time. This is a dated measurement from one site and period, not a current forecast. Exposure planning is complex; this game’s protection percentage is a fictional index, not a dose or safety limit.',
     facts: [
       'NASA identifies galactic cosmic rays and solar energetic particles as radiation sources.',
+      'Curiosity RAD recorded a surface absorbed-dose rate near 210 μGy/day during its first 10 months; archived daily RAD records are available from NASA’s Planetary Data System.',
       'The atmosphere provides some shielding, but Mars has no global magnetic field like Earth’s.',
       'A game indicator cannot substitute for real radiation measurements or mission standards.',
     ],
     relevance: 'Radiation is one factor in habitat design, mission duration, and surface planning.',
-    gameConnection: 'Regolith shielding changes a simplified crew-wellbeing mechanic, not a real dose calculation.',
+    gameConnection: 'Sol 7 uses the archived average to frame a shelter-versus-EVA planning choice. The game-only wellness effect is illustrative and is not a conversion of μGy into human dose, illness, or safety risk.',
     requirements: [{ kind: 'flag', id: 'storm-observed' }],
     relatedEntryIds: ['radiation-shielding', 'survival-pressure'],
-    sources: [SOURCES.radiation, SOURCES.humans],
+    sources: [SOURCES.radiation, SOURCES.curiosityRadDataset, SOURCES.humans],
     diagram: { label: 'A simplified protection idea', steps: ['Radiation sources reach the surface', 'Atmosphere and structures provide some shielding', 'Measure exposure and plan conservatively'] },
   },
   {

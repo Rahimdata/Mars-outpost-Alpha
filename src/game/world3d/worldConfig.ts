@@ -1,0 +1,15 @@
+export const WORLD_CONFIG = {
+  walkSpeed: 3.2,
+  runSpeed: 5.4,
+  jumpSpeed: 5.2,
+  gravity: 14,
+  worldLimit: 190,
+  playerStart: [0, 0, 8] as const,
+  objectivePosition: [0, 0, -36] as const,
+  worldSize: 520,
+  terrainSegments: 240,
+  cameraDistance: 12,
+  cameraSensitivity: 0.006,
+  minCameraDistance: 4.5,
+  maxCameraDistance: 15,
+}

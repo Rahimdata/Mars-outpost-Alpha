@@ -17,7 +17,7 @@ function CrewActor({ id, position, rotation }: CrewActorProps) {
 
   useFrame(({ clock }) => {
     const t = clock.elapsedTime
-    if (body.current) body.current.position.y = Math.sin(t * 0.9 + position[0]) * 0.025
+    if (body.current) body.current.position.y = Math.sin(t * 0.9 + position[0]) * (id === 'alex' ? 0.005 : 0.025)
     if (leftArm.current) leftArm.current.rotation.x = Math.sin(t * 0.45 + 0.7) * 0.045 - (id === 'emma' ? 0.18 : 0)
     if (rightArm.current) rightArm.current.rotation.x = Math.sin(t * 0.52 + 1.2) * 0.05 - (id === 'emma' ? 0.35 : 0)
   })

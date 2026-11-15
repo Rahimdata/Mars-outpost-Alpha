@@ -138,7 +138,9 @@ function ActivityChart({ snapshots }: { snapshots: SolReportSnapshot[] }) {
 }
 
 function CampaignReportScreen({ report, survival, colony, progress, science, siteId, ending, failureReasons, failureSolutions, onClose, onPlayAgain, onViewScience }: ReportProps) {
+  const overlayRef = useRef<HTMLDivElement>(null)
   const pageRef = useRef<HTMLElement>(null)
+  const reportGridRef = useRef<HTMLDivElement>(null)
   const [shareNotice, setShareNotice] = useState('')
   const analysisCount = Object.values(science.sampleAnalyses).filter((item) => item?.status === 'complete').length
   const sampleCount = Object.values(science.sampleAnalyses).filter(Boolean).length
@@ -191,6 +193,14 @@ function CampaignReportScreen({ report, survival, colony, progress, science, sit
     window.addEventListener('keydown', onKey)
     return () => window.removeEventListener('keydown', onKey)
   }, [onClose])
+
+  function scrollToReport() {
+    const overlay = overlayRef.current
+    const target = reportGridRef.current
+    if (!overlay || !target) return
+    const top = target.getBoundingClientRect().top - overlay.getBoundingClientRect().top + overlay.scrollTop - 12
+    overlay.scrollTo({ top: Math.max(0, top), behavior: window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth' })
+  }
 
   async function downloadPng() {
     const root = pageRef.current
@@ -250,7 +260,7 @@ function CampaignReportScreen({ report, survival, colony, progress, science, sit
     { id: 'crew', label: 'Crew wellbeing', text: `${Math.round(averageCrew)}%`, value: clamp(averageCrew), color: '#86efac' },
   ]
 
-  return <div className={`mission-report-overlay${ending ? ' is-complete' : ' is-failed'}`} role="dialog" aria-modal="true" aria-labelledby="mission-report-title">
+  return <div ref={overlayRef} className={`mission-report-overlay${ending ? ' is-complete' : ' is-failed'}`} role="dialog" aria-modal="true" aria-labelledby="mission-report-title" tabIndex={-1}>
     <div className="mission-report-backdrop" aria-hidden="true" />
     <section className="mission-report-page" ref={pageRef}>
       <header className="mission-report-hero">
@@ -264,7 +274,9 @@ function CampaignReportScreen({ report, survival, colony, progress, science, sit
         <p className="mission-report-honest">{ending ? `${titleEnding}: ${({ home: 'The outpost met the sustainability target recorded by the campaign.', foundation: 'The crew completed the mission, with some colony needs still unresolved.', lesson: 'The campaign record shows critical limits that kept the colony from becoming sustainable.' } as const)[ending]}` : `Mission operations stopped because ${failureReasons.join(', ')} reached zero. The report uses the progress saved up to that point.`}</p>
       </header>
 
-      <div className="mission-report-grid">
+      <button type="button" className="mission-report-scroll-cue" onClick={scrollToReport} aria-controls="mission-report-sections">SCROLL TO REVIEW THE COMPLETE CAMPAIGN REPORT <span aria-hidden="true">↓</span></button>
+
+      <div id="mission-report-sections" ref={reportGridRef} className="mission-report-grid">
         <section className="mission-report-panel mission-report-stat-grid" aria-label="Campaign statistics">
           {[
             ['SOLS SURVIVED', <Fragment key="value"><AnimatedValue value={completedSolCount} /><small> / 10</small></Fragment>],

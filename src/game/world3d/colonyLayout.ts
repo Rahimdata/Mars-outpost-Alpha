@@ -24,7 +24,8 @@ const buildingSpecs: Record<BuildingId, { open: [number, number]; rocky: [number
   laboratory: { open: [23, -4], rocky: [24, -5], radius: 16.4, rotation: -0.22 },
   'solar-array': { open: [-29, -20], rocky: [-31, -19], radius: 10.5, rotation: 0.24 },
   'battery-storage': { open: [-15, -7], rocky: [-16, -8], radius: 9.2, rotation: -0.13 },
-  'rover-garage': { open: [24, 14], rocky: [25, 13], radius: 10.8, rotation: -0.12 },
+  // Keep the garage and its long approach apron clear of the research lab.
+  'rover-garage': { open: [43, 26], rocky: [45, 26], radius: 10.8, rotation: -0.12 },
 }
 
 export function getColonyLayout(siteId: LandingSiteId): ColonyBuilding[] {

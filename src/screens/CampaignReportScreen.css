@@ -8,14 +8,25 @@
   position: fixed;
   z-index: 1000;
   inset: 0;
-  overflow: auto;
+  box-sizing: border-box;
+  overflow-x: hidden;
+  overflow-y: auto;
+  overscroll-behavior-y: contain;
+  scrollbar-gutter: stable;
+  scrollbar-width: thin;
+  scrollbar-color: #3c8f89 #111920;
+  -webkit-overflow-scrolling: touch;
   color: var(--report-text);
   background: var(--report-bg);
   font-family: Inter, Rajdhani, system-ui, sans-serif;
   animation: mission-report-fade 550ms ease both;
 }
+.mission-report-overlay *, .mission-report-overlay *::before, .mission-report-overlay *::after { box-sizing: border-box; }
+.mission-report-overlay::-webkit-scrollbar { width: 10px; }
+.mission-report-overlay::-webkit-scrollbar-track { background: #111920; }
+.mission-report-overlay::-webkit-scrollbar-thumb { background: #3c8f89; border: 2px solid #111920; border-radius: 99px; }
 .mission-report-backdrop { position: fixed; inset: 0; pointer-events: none; background: radial-gradient(ellipse at 50% 0%, rgb(221 113 72 / 19%), transparent 48%), linear-gradient(135deg, #101a22, #0a0f15 70%); }
-.mission-report-page { position: relative; width: min(1540px, 100%); margin: 0 auto; padding: clamp(18px, 3vw, 42px); }
+.mission-report-page { position: relative; width: min(1540px, 100%); max-width: 100%; min-height: 100%; margin: 0 auto; padding: clamp(18px, 3vw, 42px); }
 .mission-report-hero { position: relative; overflow: hidden; min-height: 320px; display: grid; justify-items: center; align-content: center; padding: 76px 26px 30px; text-align: center; border: 1px solid var(--report-border); border-radius: 18px; background: radial-gradient(ellipse at 50% 0%, rgb(245 145 91 / 34%), transparent 55%), linear-gradient(135deg, rgb(25 37 46 / 98%), rgb(17 24 32 / 96%) 60%, rgb(26 29 33 / 97%)); box-shadow: 0 28px 80px rgb(0 0 0 / 34%); }
 .mission-report-hero::before, .mission-report-hero::after, .mission-report-panel::before, .mission-report-panel::after { content: ''; position: absolute; width: 14px; height: 14px; border-color: rgb(94 234 212 / 82%); pointer-events: none; }
 .mission-report-hero::before, .mission-report-panel::before { top: 10px; left: 10px; border-top: 1px solid; border-left: 1px solid; }
@@ -38,10 +49,14 @@
 .mission-report-rank b small { color: #8b98a8; font-size: 10px; }
 .mission-report-rank i { color: var(--report-teal); }
 .mission-report-honest { max-width: 900px; margin: 14px 0 0; color: #d0d9e1; font-size: 13px; line-height: 1.55; }
+.mission-report-scroll-cue { display: flex; align-items: center; justify-content: center; gap: 4px; width: fit-content; max-width: 100%; margin: 14px auto -4px; padding: 6px 10px; color: #9babb8; background: transparent; border: 1px solid transparent; border-radius: 999px; font: inherit; font-size: 9px; font-weight: 750; letter-spacing: .15em; text-align: center; cursor: pointer; }
+.mission-report-scroll-cue:hover, .mission-report-scroll-cue:focus-visible { color: #e6edf3; border-color: rgb(94 234 212 / 42%); background: rgb(94 234 212 / 6%); outline: none; }
+.mission-report-scroll-cue span { display: inline-block; margin-left: 5px; color: var(--report-teal); font-size: 14px; animation: mission-report-scroll 1.3s ease-in-out infinite; }
 .mission-report-particles { position: absolute; inset: 0; overflow: hidden; pointer-events: none; }
 .mission-report-particles i { position: absolute; left: calc((var(--particle-index) * 37 + 5) % 100 * 1%); top: calc((var(--particle-index) * 19 + 12) % 90 * 1%); width: 3px; height: 3px; border-radius: 50%; background: var(--report-teal); opacity: 0; animation: mission-report-dust 3.6s ease-in-out infinite; animation-delay: calc(var(--particle-index) * -0.17s); }
 .mission-report-particles i:nth-child(3n) { background: #f7b57d; }
-.mission-report-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 14px; margin-top: 16px; }
+.mission-report-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: start; gap: 14px; margin-top: 16px; min-width: 0; }
+.mission-report-grid > * { min-width: 0; }
 .mission-report-panel { position: relative; min-width: 0; padding: 19px; overflow: hidden; border: 1px solid var(--report-border); border-radius: 12px; background: var(--report-panel); box-shadow: 0 12px 36px rgb(0 0 0 / 18%); backdrop-filter: blur(14px) saturate(1.1); }
 .mission-report-panel--wide { grid-column: 1 / -1; }
 .mission-report-stat-grid { grid-column: 1 / -1; display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; padding: 12px; }
@@ -140,9 +155,11 @@
 @keyframes mission-report-draw { to { stroke-dashoffset: 0; } }
 @keyframes mission-report-grow { from { transform: scaleY(.08); } to { transform: scaleY(1); } }
 @keyframes mission-report-dust { 0%, 100% { opacity: 0; transform: translateY(12px) scale(.7); } 45% { opacity: .68; } 75% { opacity: .18; transform: translateY(-22px) scale(1.25); } }
-@media (max-width: 1100px) { .mission-report-stat-grid { grid-template-columns: repeat(3, minmax(0,1fr)); } .mission-report-archive { grid-template-columns: 100px 1fr; gap: 10px; } .mission-report-archive svg { width: 100px; height: 100px; } .mission-report-archive > div { grid-template-columns: 1fr; } }
-@media (max-width: 720px) { .mission-report-page { padding: 10px; } .mission-report-hero { min-height: 360px; padding: 90px 15px 22px; } .mission-report-hero__actions { left: 10px; right: 10px; flex-wrap: wrap; justify-content: center; } .mission-report-hero__actions button { min-height: 32px; padding: 0 8px; font-size: 9px; } .mission-report-grid { grid-template-columns: 1fr; gap: 10px; } .mission-report-panel--wide, .mission-report-stat-grid, .mission-report-decision { grid-column: 1; } .mission-report-panel { padding: 14px; } .mission-report-stat-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .mission-report-stat { min-height: 78px; } .mission-report-timeline__track { grid-template-columns: repeat(10, 78px); } .mission-report-achievements { grid-template-columns: 1fr; } .mission-report-section-heading { align-items: start; flex-direction: column; } .mission-report-archive { grid-template-columns: 100px minmax(0,1fr); } .mission-report-archive > div { grid-template-columns: 1fr; } .mission-report-lows { gap: 7px 10px; } }
-@media (prefers-reduced-motion: reduce) { .mission-report-overlay, .mission-report-particles i, .mission-report-line, .mission-report-bar > i, .mission-report-activity__bars i { animation: none !important; transition: none !important; } }
+@keyframes mission-report-scroll { 0%, 100% { transform: translateY(-2px); } 50% { transform: translateY(3px); } }
+@media (max-width: 1100px) { .mission-report-stat-grid { grid-template-columns: repeat(3, minmax(0,1fr)); } .mission-report-archive { grid-template-columns: 100px minmax(0,1fr); gap: 10px; } .mission-report-archive svg { width: 100px; height: 100px; } .mission-report-archive > div { grid-template-columns: 1fr; } }
+@media (max-width: 900px) { .mission-report-page { padding: 16px; } .mission-report-grid { grid-template-columns: 1fr; gap: 12px; } .mission-report-panel--wide, .mission-report-stat-grid, .mission-report-decision { grid-column: 1; } .mission-report-hero__actions { left: 12px; right: 12px; justify-content: center; flex-wrap: wrap; } .mission-report-hero { padding-top: 92px; } }
+@media (max-width: 720px) { .mission-report-page { padding: 10px; } .mission-report-hero { min-height: 360px; padding: 90px 15px 22px; } .mission-report-hero__actions { left: 10px; right: 10px; flex-wrap: wrap; justify-content: center; } .mission-report-hero__actions button { min-height: 32px; padding: 0 8px; font-size: 9px; } .mission-report-panel { padding: 14px; } .mission-report-stat-grid { grid-template-columns: repeat(2,minmax(0,1fr)); } .mission-report-stat { min-height: 78px; } .mission-report-timeline__track { grid-template-columns: repeat(10, 78px); } .mission-report-achievements { grid-template-columns: 1fr; } .mission-report-section-heading { align-items: start; flex-direction: column; } .mission-report-archive { grid-template-columns: 88px minmax(0,1fr); } .mission-report-archive svg { width: 88px; height: 88px; } .mission-report-archive > div { grid-template-columns: 1fr; } .mission-report-lows { gap: 7px 10px; } }
+@media (prefers-reduced-motion: reduce) { .mission-report-overlay, .mission-report-scroll-cue span, .mission-report-particles i, .mission-report-line, .mission-report-bar > i, .mission-report-activity__bars i { animation: none !important; transition: none !important; } }
 @media print {
   @page { size: A4; margin: 12mm; }
   body, html { overflow: visible !important; background: #0b1118 !important; print-color-adjust: exact; -webkit-print-color-adjust: exact; }

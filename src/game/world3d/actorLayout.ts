@@ -29,7 +29,8 @@ export function getCrewWorldPositions(siteId: LandingSiteId): CrewWorldPosition[
   const emmaZ = laboratory.z - emmaLocalX * labSin + emmaLocalZ * labCos
   const garage = byId.get('rover-garage')!
   // Keep Alex just outside the right side of the vehicle bay entrance, clear
-  // of the doorway while close enough to approach and talk to.
+  // of the doorway while close enough to approach and talk to. This spot is on
+  // the raised garage apron, so anchor his feet to the apron surface.
   const alexLocalX = 4.7
   const alexLocalZ = 8.8
   const garageCos = Math.cos(garage.rotation)
@@ -39,15 +40,17 @@ export function getCrewWorldPositions(siteId: LandingSiteId): CrewWorldPosition[
   return [
     { id: 'ryan', x: ryanX, z: ryanZ, y: getTerrainHeight(siteId, ryanX, ryanZ), rotation: habitat.rotation + 0.9 },
     { id: 'emma', x: emmaX, z: emmaZ, y: getTerrainHeight(siteId, emmaX, emmaZ), rotation: laboratory.rotation + Math.atan2(-emmaLocalX, -emmaLocalZ) },
-    { id: 'alex', x: alexX, z: alexZ, y: getTerrainHeight(siteId, alexX, alexZ), rotation: Math.PI - garage.rotation + Math.atan2(-alexLocalX, -(alexLocalZ - 6.5)) },
+    { id: 'alex', x: alexX, z: alexZ, y: garage.y + 0.05, rotation: Math.PI - garage.rotation + Math.atan2(-alexLocalX, -(alexLocalZ - 6.5)) },
   ]
 }
 
 export function getRoverPosition(siteId: LandingSiteId) {
   const garage = getColonyLayout(siteId).find((building) => building.id === 'rover-garage')!
   // Bay 1 parking spot inside the hangar, aligned with the +Z vehicle door.
-  const localZ = -1.35
+  const localZ = 0
   const x = garage.x + Math.sin(garage.rotation) * localZ
   const z = garage.z + Math.cos(garage.rotation) * localZ
-  return { x, y: getTerrainHeight(siteId, x, z), z, rotation: garage.rotation }
+  // The rover wheels rest on the garage slab, whose top is 0.24 m above the
+  // graded pad; RoverModel's lowest wheel point is 0.12 m above its root.
+  return { x, y: garage.y + 0.12, z, rotation: garage.rotation }
 }

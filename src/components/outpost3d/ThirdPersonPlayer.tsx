@@ -68,6 +68,18 @@ function ThirdPersonPlayer({ playerRef, siteId, controls, interiorBuildingId, ro
 )
 
   const buildings = useMemo(() => getColonyLayout(siteId), [siteId])
+  const garage = buildings.find((building) => building.id === 'rover-garage')!
+  const garageFloorTop = (x: number, z: number) => {
+    const dx = x - garage.x
+    const dz = z - garage.z
+    const localX = Math.cos(garage.rotation) * dx - Math.sin(garage.rotation) * dz
+    const localZ = Math.sin(garage.rotation) * dx + Math.cos(garage.rotation) * dz
+    if (Math.abs(localX) <= 9.3 && Math.abs(localZ) <= 6.35) return garage.y + 0.24
+    if (Math.abs(localX) <= 9.1 && localZ >= 5.8 && localZ <= 20.8) return garage.y + 0.14
+    return null
+  }
+  const characterGroundHeight = (x: number, z: number) => (garageFloorTop(x, z) ?? getTerrainHeight(siteId, x, z)) - 0.03
+  const roverGroundHeight = (x: number, z: number) => (garageFloorTop(x, z) ?? getTerrainHeight(siteId, x, z)) - 0.12
   const animation = useRef<AstronautAnimation>('idle')
   const gait = useRef(0)
   const roverSpeed = useRef(0)
@@ -80,9 +92,9 @@ function ThirdPersonPlayer({ playerRef, siteId, controls, interiorBuildingId, ro
   const roverTripStart = useRef({ x: roverPosition.x, z: roverPosition.z })
   const initialPosition = useMemo<[number, number, number]>(() => [
     WORLD_CONFIG.playerStart[0],
-    getTerrainHeight(siteId, WORLD_CONFIG.playerStart[0], WORLD_CONFIG.playerStart[2]),
+    characterGroundHeight(WORLD_CONFIG.playerStart[0], WORLD_CONFIG.playerStart[2]),
     WORLD_CONFIG.playerStart[2],
-  ], [siteId])
+  ], [siteId, garage.x, garage.y, garage.z, garage.rotation])
 
   const surfaceExit = (buildingId: InteriorBuildingId) => {
     const building = buildings.find((item) => item.id === buildingId)!
@@ -103,20 +115,20 @@ function ThirdPersonPlayer({ playerRef, siteId, controls, interiorBuildingId, ro
       else if (mode.current.startsWith('interior:')) {
         const previousBuilding = mode.current.slice('interior:'.length) as InteriorBuildingId
         const exit = surfaceExit(previousBuilding)
-        astronaut.position.set(exit.x, getTerrainHeight(siteId, exit.x, exit.z), exit.z)
+        astronaut.position.set(exit.x, characterGroundHeight(exit.x, exit.z), exit.z)
       } else if (roverDriving) {
-        astronaut.position.set(roverPosition.x, getTerrainHeight(siteId, roverPosition.x, roverPosition.z), roverPosition.z)
+        astronaut.position.set(roverPosition.x, roverGroundHeight(roverPosition.x, roverPosition.z), roverPosition.z)
         astronaut.rotation.y = roverPosition.rotation
         roverTripStart.current = { x: roverPosition.x, z: roverPosition.z }
       }
       else if (mode.current === 'rover') {
         const tripDistance = Math.hypot(astronaut.position.x - roverTripStart.current.x, astronaut.position.z - roverTripStart.current.z)
-        onRoverStatus(roverBattery.current, tripDistance, { x: astronaut.position.x, y: getTerrainHeight(siteId, astronaut.position.x, astronaut.position.z), z: astronaut.position.z, rotation: astronaut.rotation.y })
+        onRoverStatus(roverBattery.current, tripDistance, { x: astronaut.position.x, y: roverGroundHeight(astronaut.position.x, astronaut.position.z), z: astronaut.position.z, rotation: astronaut.rotation.y })
         const sideX = Math.cos(astronaut.rotation.y)
         const sideZ = -Math.sin(astronaut.rotation.y)
         const exitX = astronaut.position.x + sideX * 1.8
         const exitZ = astronaut.position.z + sideZ * 1.8
-        astronaut.position.set(exitX, getTerrainHeight(siteId, exitX, exitZ), exitZ)
+        astronaut.position.set(exitX, characterGroundHeight(exitX, exitZ), exitZ)
       }
       mode.current = currentMode
     }
@@ -146,7 +158,9 @@ function ThirdPersonPlayer({ playerRef, siteId, controls, interiorBuildingId, ro
 
     const moveX = velocity.current.x * dt
     const moveZ = velocity.current.z * dt
-    const currentGround = interiorBuildingId ? 0 : getTerrainHeight(siteId, astronaut.position.x, astronaut.position.z)
+    const currentGround = interiorBuildingId ? 0 : roverDriving
+      ? roverGroundHeight(astronaut.position.x, astronaut.position.z)
+      : characterGroundHeight(astronaut.position.x, astronaut.position.z)
     const canMoveTo = (x: number, z: number) => {
   const radius = roverDriving ? 1.35 : 0.58
 
@@ -180,7 +194,7 @@ function ThirdPersonPlayer({ playerRef, siteId, controls, interiorBuildingId, ro
     return false
   }
 
-  const nextGround = getTerrainHeight(siteId, x, z)
+  const nextGround = roverDriving ? roverGroundHeight(x, z) : characterGroundHeight(x, z)
   if (nextGround - currentGround > (roverDriving ? 0.45 : 0.72)) {
     return false
   }
@@ -194,24 +208,21 @@ function ThirdPersonPlayer({ playerRef, siteId, controls, interiorBuildingId, ro
         const sin = Math.sin(building.rotation)
         const localX = cos * dx - sin * dz
         const localZ = sin * dx + cos * dz
-        const isAtAirlock = Math.abs(localX) < 1.45 && localZ > 9.4 && localZ < 15.2
-        return !isAtAirlock && Math.abs(localX) < 15.0 + radius && Math.abs(localZ) < 10.0 + radius
+        return Math.abs(localX) < 15.0 + radius && Math.abs(localZ) < 10.0 + radius
       }
       if (building.id === 'greenhouse') {
         const cos = Math.cos(building.rotation)
         const sin = Math.sin(building.rotation)
         const localX = cos * dx - sin * dz
         const localZ = sin * dx + cos * dz
-        const isAtAirlock = Math.abs(localX) < 1.55 && localZ > 9.3 && localZ < 14.4
-        return !isAtAirlock && Math.abs(localX) < 6.4 + radius && Math.abs(localZ) < 10.4 + radius
+        return Math.abs(localX) < 6.4 + radius && Math.abs(localZ) < 10.4 + radius
       }
       if (building.id === 'laboratory') {
         const cos = Math.cos(building.rotation)
         const sin = Math.sin(building.rotation)
         const localX = cos * dx - sin * dz
         const localZ = sin * dx + cos * dz
-        const isAtAirlock = Math.abs(localX) < 1.8 && localZ > 8.0 && localZ < 12.2
-        return !isAtAirlock && Math.abs(localX) < 12.25 + radius && Math.abs(localZ) < 9.75 + radius
+        return Math.abs(localX) < 12.25 + radius && Math.abs(localZ) < 9.75 + radius
       }
       if (building.id === 'rover-garage') {
         const cos = Math.cos(building.rotation)
@@ -302,7 +313,9 @@ function ThirdPersonPlayer({ playerRef, siteId, controls, interiorBuildingId, ro
     if (!grounded.current) {
       verticalSpeed.current -= WORLD_CONFIG.gravity * dt
       astronaut.position.y += verticalSpeed.current * dt
-      const terrainY = interiorBuildingId ? 0 : getTerrainHeight(siteId, astronaut.position.x, astronaut.position.z)
+      const terrainY = interiorBuildingId ? 0 : roverDriving
+        ? roverGroundHeight(astronaut.position.x, astronaut.position.z)
+        : characterGroundHeight(astronaut.position.x, astronaut.position.z)
       if (astronaut.position.y <= terrainY) {
         astronaut.position.y = terrainY
         verticalSpeed.current = 0
@@ -310,7 +323,9 @@ function ThirdPersonPlayer({ playerRef, siteId, controls, interiorBuildingId, ro
         landingTime.current = 0.28
       }
     } else {
-      const terrainY = interiorBuildingId ? 0 : getTerrainHeight(siteId, astronaut.position.x, astronaut.position.z)
+      const terrainY = interiorBuildingId ? 0 : roverDriving
+        ? roverGroundHeight(astronaut.position.x, astronaut.position.z)
+        : characterGroundHeight(astronaut.position.x, astronaut.position.z)
       astronaut.position.y += (terrainY - astronaut.position.y) * (1 - Math.exp(-14 * dt))
     }
 
@@ -329,7 +344,7 @@ function ThirdPersonPlayer({ playerRef, siteId, controls, interiorBuildingId, ro
       if (statusTimer.current >= 0.45) {
         statusTimer.current = 0
         const tripDistance = Math.hypot(astronaut.position.x - roverTripStart.current.x, astronaut.position.z - roverTripStart.current.z)
-        onRoverStatus(roverBattery.current, tripDistance, { x: astronaut.position.x, y: getTerrainHeight(siteId, astronaut.position.x, astronaut.position.z), z: astronaut.position.z, rotation: astronaut.rotation.y })
+        onRoverStatus(roverBattery.current, tripDistance, { x: astronaut.position.x, y: roverGroundHeight(astronaut.position.x, astronaut.position.z), z: astronaut.position.z, rotation: astronaut.rotation.y })
       }
     }
 

@@ -1,32 +1,32 @@
-# React + TypeScript + Vite
+# Mars: Outpost Alpha
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+**Mars: Outpost Alpha** is a browser-based Mars survival and colony-management game. Guide a crew through a ten-Sol campaign by exploring the surface, maintaining outpost systems, managing supplies, and making decisions that shape the mission outcome.
 
-Currently, two official plugins are available:
+The game introduces young players to mission planning and resource trade-offs through rover exploration, crew interactions, colony management, and a science archive. Campaign resource values and outcomes are simplified game simulations—not live NASA telemetry or operational mission forecasts. NASA learning resources are credited in the in-game science archive.
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+## Run locally
 
-## React Compiler
+Requirements: Node.js and npm.
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
-
-## Expanding the Oxlint configuration
-
-If you are developing a production application, we recommend enabling type-aware lint rules by installing `oxlint-tsgolint` and editing `.oxlintrc.json`:
-
-```json
-{
-  "$schema": "./node_modules/oxlint/configuration_schema.json",
-  "plugins": ["react", "typescript", "oxc"],
-  "options": {
-    "typeAware": true
-  },
-  "rules": {
-    "react/rules-of-hooks": "error",
-    "react/only-export-components": ["warn", { "allowConstantExport": true }]
-  }
-}
+```bash
+npm install
+npm run dev
 ```
 
-See the [Oxlint rules documentation](https://oxc.rs/docs/guide/usage/linter/rules) for the full list of rules and categories.
+Open the local URL shown by Vite. To create and preview a production build:
+
+```bash
+npm run build
+npm run preview
+```
+
+## Controls
+
+In the 3D world, use **WASD** to move, **Shift** to run, **Space** to jump, and **E** to interact. Use the mouse to look around. In-game prompts and the controls panel explain other actions.
+
+## Built with
+
+React, TypeScript, Vite, Three.js, and React Three Fiber.
+
+## Author
+--Mohd Rahim--

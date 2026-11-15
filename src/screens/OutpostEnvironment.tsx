@@ -6,7 +6,7 @@ import {
   type BuildingId,
   type BuildingStatus,
 } from '../game/data/outpostBuildings'
-import { getCampaignState } from '../game/state/campaignState'
+import { FIRST_STEPS_GUIDE_KEY, getCampaignState } from '../game/state/campaignState'
 import { LANDING_SITES } from '../game/data/landingSites'
 import type { LandingSiteId } from '../game/data/landingSites'
 import './OutpostEnvironment.css'
@@ -33,6 +33,14 @@ function OutpostEnvironment({ onBackToEntry }: OutpostEnvironmentProps) {
   const [panX, setPanX] = useState(0)
   const [panY, setPanY] = useState(0)
   const [showEnginePreview, setShowEnginePreview] = useState(false)
+  const [showFirstSteps, setShowFirstSteps] = useState(() => {
+    try { return localStorage.getItem(FIRST_STEPS_GUIDE_KEY) !== 'true' } catch { return true }
+  })
+
+  function dismissFirstSteps() {
+    setShowFirstSteps(false)
+    try { localStorage.setItem(FIRST_STEPS_GUIDE_KEY, 'true') } catch { /* The guide remains dismissed for this screen. */ }
+  }
 
   if (!siteId || !campaign.landingSiteConfirmed) {
     return (
@@ -232,6 +240,29 @@ function OutpostEnvironment({ onBackToEntry }: OutpostEnvironmentProps) {
                   <b>{site.geologicalResearchOpportunity}</b>
                 </div>
               </div>
+
+              {showFirstSteps && <section className="first-steps-card" aria-labelledby="first-steps-title">
+                <div className="first-steps-card__heading">
+                  <div><span className="first-steps-card__eyebrow">NEW TO THE OUTPOST?</span><h3 id="first-steps-title">Your first steps</h3></div>
+                  <button type="button" onClick={dismissFirstSteps} aria-label="Dismiss first steps guide">×</button>
+                </div>
+                <p>Enter the 3D world, then follow the mission objective and marker to Ryan.</p>
+                <div className="first-steps-controls" aria-label="Starter controls">
+                  <span><kbd>W A S D</kbd><b>Move</b></span>
+                  <span><kbd>E</kbd><b>Talk or use</b></span>
+                  <span><kbd>J</kbd><b>Open Journal</b></span>
+                </div>
+                <details className="first-steps-terms">
+                  <summary>Quick Mars word guide</summary>
+                  <dl>
+                    <div><dt>O₂ · Oxygen</dt><dd>The gas the crew breathes.</dd></div>
+                    <div><dt>H₂O · Water</dt><dd>Water the crew and outpost use.</dd></div>
+                    <div><dt>Sol</dt><dd>One day on Mars.</dd></div>
+                    <div><dt>Radiation</dt><dd>Invisible energy and particles from space. Shielding can reduce exposure.</dd></div>
+                  </dl>
+                </details>
+                <small className="first-steps-card__note">Game readings are simulations unless a science source is shown. You can close this guide anytime.</small>
+              </section>}
 
               <div className="structure-list">
                 <p className="outpost-eyebrow">STRUCTURE STATUS</p>

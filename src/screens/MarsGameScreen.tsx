@@ -9,13 +9,13 @@ import { CREW, EMPTY_MISSION_PROGRESS, EXTERIOR_EQUIPMENT, INTERIOR_EQUIPMENT, S
 import type { CrewId, InteractionTarget, InteriorBuildingId, MissionProgress, SampleId } from '../game/data/gameplay'
 import { interactionKey } from '../game/data/gameplay'
 import { CAMPAIGN_ENDINGS, FINAL_CAMPAIGN_LINE, TEN_SOL_CAMPAIGN } from '../game/data/tenSolCampaign'
-import { advanceSurvival, applyCampaignDecision, chooseEnding, closeSol, equipmentName, INITIAL_SURVIVAL_STATE, readSurvivalState, repairEquipment, restCrew, stormIntensityAt, SURVIVAL_SAVE_KEY } from '../game/state/survivalState'
+import { advanceSurvival, applyCampaignDecision, campaignDecisionLabel, chooseEnding, closeSol, equipmentName, previewCampaignDecisionEffects, readSurvivalState, repairEquipment, restCrew, stormIntensityAt, SURVIVAL_SAVE_KEY } from '../game/state/survivalState'
 import type { CampaignDecision, EquipmentId, SurvivalState } from '../game/state/survivalState'
 import type { OperationalControls } from '../game/state/survivalState'
 import { MarsAudioManager } from '../game/state/MarsAudioManager'
 import type { FootstepSurface } from '../game/state/MarsAudioManager'
-import { advanceColony, assignCrew, plantCrop, harvestCrop, maintainSolar, readColonyState, resourceRates, resolveColonyEvent, setColonyPriority, startBuildingUpgrade, startExpansion, COLONY_SAVE_KEY, greenhouseStability, INITIAL_COLONY_STATE } from '../game/state/colonyState'
-import type { ColonyPriority, ColonyState, CropId, ExpansionId } from '../game/state/colonyState'
+import { advanceColony, assignCrew, plantCrop, harvestCrop, maintainSolar, readColonyState, resourceRates, resolveColonyEvent, setColonyPriority, startBuildingUpgrade, startExpansion, COLONY_SAVE_KEY, greenhouseStability, CURIOSITY_RAD_REFERENCE, radiationPlanWellnessCost } from '../game/state/colonyState'
+import type { ColonyPriority, ColonyState, CropId, ExpansionId, RadiationPlan } from '../game/state/colonyState'
 import ColonyManagementPanel from '../components/outpost3d/ColonyManagementPanel'
 import type { WorldControls } from '../game/world3d/types'
 import type { RoverWorldPosition } from '../game/world3d/types'
@@ -27,6 +27,11 @@ import MarsWorld from '../components/outpost3d/MarsWorld'
 import './MarsGameScreen.css'
 import ScienceHub from '../game/science/ScienceHub'
 import { setIntroMusicSettings } from '../game/state/introMusic'
+import CampaignReportScreen from './CampaignReportScreen'
+import { archiveAndResetActiveSaves } from '../game/state/campaignLifecycle'
+import { observeReportVitals, readMissionReport, recordMissionFailure, recordNearMiss, recordReportEvent, recordSolSnapshot, saveMissionReport } from '../game/campaign/missionReport'
+import type { MissionReportData, ReportVital } from '../game/campaign/missionReport'
+import { readScienceProgress } from '../game/science/scienceProgress'
 
 
 
@@ -133,6 +138,7 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
   const audio = useRef<MarsAudioManager | null>(null)
   const [progress, setProgress] = useState<MissionProgress>(readMissionProgress)
   const [survival, setSurvival] = useState<SurvivalState>(readSurvivalState)
+  const [missionReport, setMissionReport] = useState<MissionReportData>(() => readMissionReport(survival))
   const [roverWorldPosition, setRoverWorldPosition] = useState<RoverWorldPosition>(() => getRoverPosition(siteId))
   const [missionFailureReasons, setMissionFailureReasons] = useState<CriticalResource[]>(() => CRITICAL_RESOURCE_ORDER.filter((id) => survival.resources[id] <= 0))
   const [colony, setColony] = useState<ColonyState>(readColonyState)
@@ -151,6 +157,7 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
   const [journalOpen, setJournalOpen] = useState(false)
   const [scienceOpen, setScienceOpen] = useState(false)
   const [debriefOpen, setDebriefOpen] = useState(false)
+  const [missionReportOpen, setMissionReportOpen] = useState(() => Boolean(survival.ending && survival.completedSols.includes(10)))
   const [settingsOpen, setSettingsOpen] = useState(false)
   const [colonyOpen, setColonyOpen] = useState(false)
   const [selectedBuilding, setSelectedBuilding] = useState<import('../game/data/outpostBuildings').BuildingId>('habitat')
@@ -173,9 +180,15 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
   const minimapBuildings = useMemo(() => getColonyLayout(siteId), [siteId])
   const minimapCrew = useMemo(() => getCrewWorldPositions(siteId), [siteId])
   const survivalRef = useRef(survival)
+  const missionReportRef = useRef(missionReport)
+  const reportLastFlushAt = useRef(0)
+  const movementSample = useRef<{ x: number; z: number; mode: string } | null>(null)
+  const previousVitals = useRef({ ...survival.resources })
+  const previousTrackedJournal = useRef(progress.journal[0] ?? '')
   const colonyRef = useRef(colony)
   const audioCaptionTimer = useRef<ReturnType<typeof window.setTimeout> | null>(null)
   const sol = TEN_SOL_CAMPAIGN[survival.sol - 1]
+  const campaignDecisionReceipt = progress.journal.find((entry) => entry.startsWith('SOL 09 DECISION RECEIPT ·')) ?? ''
   const objective = survival.sol > 1 ? sol.objective : !progress.talkedTo.includes('ryan')
     ? 'Meet Ryan Cooper at the habitat'
     : !progress.inspected.includes('life-support')
@@ -265,7 +278,7 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
       case 4: return survival.shelteredSols.includes(4)
       case 5: return progress.inspected.includes('grow-lights') && survival.equipment.greenhouse >= 60 && survival.resources.food >= 15
       case 6: return progress.collectedSamples.length >= 2 && progress.roverTripComplete
-      case 7: return new Set(survival.maintenanceLog).size >= 3
+      case 7: return new Set(survival.maintenanceLog).size >= 3 && colony.radiationPlan !== null
       case 8: return Object.values(survival.resources).every((value) => value >= 20) && averageWellness >= 40
       case 9: return survival.decisions.length > 0
       default: return true
@@ -277,9 +290,62 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
   }, [progress])
 
   useEffect(() => {
-    try { localStorage.setItem('mars-outpost-alpha-survival-v1', JSON.stringify(survival)) } catch { /* Keep the current session playable if storage is unavailable. */ }
+    try { localStorage.setItem(SURVIVAL_SAVE_KEY, JSON.stringify(survival)) } catch { /* Keep the current session playable if storage is unavailable. */ }
   }, [survival])
   useEffect(() => { survivalRef.current = survival }, [survival])
+  useEffect(() => { saveMissionReport(missionReport) }, [missionReport])
+  useEffect(() => {
+    let updated = observeReportVitals(missionReportRef.current, survival)
+    const trackedResources: Array<{ id: keyof typeof survival.resources; reportId: ReportVital }> = [
+      { id: 'oxygen', reportId: 'o2' }, { id: 'water', reportId: 'h2o' }, { id: 'food', reportId: 'food' }, { id: 'energy', reportId: 'pwr' },
+    ]
+    for (const item of trackedResources) if (previousVitals.current[item.id] >= 15 && survival.resources[item.id] > 0 && survival.resources[item.id] < 15) updated = recordNearMiss(updated, survival.sol, item.reportId)
+    if (updated !== missionReportRef.current) commitMissionReport(updated)
+    previousVitals.current = { ...survival.resources }
+  }, [survival.resources.oxygen, survival.resources.water, survival.resources.food, survival.resources.energy, survival.sol, survival.solMinute])
+  useEffect(() => {
+    const latest = progress.journal[0]
+    if (!latest || latest === previousTrackedJournal.current) return
+    previousTrackedJournal.current = latest
+    const outcome = /TRADE-OFF APPLIED/i.test(latest) ? 'Trade-off applied' : /complete|completed|unlocked|reached|harvested/i.test(latest) ? 'Completed' : /failed|lost|depleted/i.test(latest) ? 'Failure' : 'Recorded'
+    const next = recordReportEvent(missionReportRef.current, survivalRef.current.sol, latest, outcome)
+    if (next !== missionReportRef.current) commitMissionReport(next)
+  }, [progress.journal])
+  useEffect(() => {
+    if (!missionFailureReasons.length) return
+    const next = recordMissionFailure(missionReportRef.current, survivalRef.current.sol, missionFailureReasons.map((id) => CRITICAL_RESOURCE_FAILURES[id].reason))
+    commitMissionReport(next)
+    setMissionReportOpen(true)
+  }, [missionFailureReasons])
+  useEffect(() => {
+    const initialTime = performance.now()
+    let lastTick = initialTime
+    let lastFlush = initialTime
+    const tick = window.setInterval(() => {
+      const now = performance.now()
+      const elapsed = Math.max(0, Math.min(2, (now - lastTick) / 1000))
+      lastTick = now
+      if (!document.hidden && !debriefOpen && !missionReportOpen && missionFailureReasons.length === 0 && elapsed > 0) {
+        const report = missionReportRef.current
+        missionReportRef.current = {
+          ...report,
+          activePlaySeconds: report.activePlaySeconds + elapsed,
+          evaSeconds: report.evaSeconds + (!interiorBuildingId && !roverDriving ? elapsed : 0),
+        }
+      }
+      if (now - lastFlush >= 5000) {
+        lastFlush = now
+        commitMissionReport(missionReportRef.current)
+      }
+    }, 1000)
+    return () => { window.clearInterval(tick); saveMissionReport(missionReportRef.current) }
+  }, [interiorBuildingId, roverDriving, debriefOpen, missionReportOpen, missionFailureReasons.length])
+  useEffect(() => {
+    if (!survival.notice) return
+    const current = missionReportRef.current
+    const next = recordReportEvent(current, survival.sol, survival.notice, survival.notice.includes('STORM') || survival.notice.includes('dust') ? 'Weather event' : 'System event')
+    if (next !== current) commitMissionReport(next)
+  }, [survival.notice, survival.sol])
   useEffect(() => {
     if (missionFailureReasons.length) return
     const depleted = CRITICAL_RESOURCE_ORDER.filter((id) => survival.resources[id] <= 0)
@@ -310,6 +376,9 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
       colonyRef.current = result.colony
       setSurvival(result.survival)
       setColony(result.colony)
+      if (!before.earthStormReplyReceived && result.survival.earthStormReplyReceived && before.earthStormRequestSentAt !== null) {
+        addJournalEntry('Sol 04 · Delayed Earth reply received. Mission Control advised the crew to follow the local dust warning and shelter before the peak; the reply arrived after its 44-minute round trip.')
+      }
       if (beforeColony.construction && !result.colony.construction) setColonyNotice('Construction complete · the new system is online and saved.')
       if (advanced.sol === 6 && advanced.solMinute >= 180 && !beforeColony.event) setColony((current) => {
         const event = { id: 'greenhouse-slowdown-sol6', title: 'Greenhouse growth slowdown', body: 'Environmental-control drift is reducing crop condition. Repair now to spend components and power, or defer and accept lower harvest condition.', resolved: false }
@@ -354,8 +423,85 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
     return () => document.removeEventListener('visibilitychange', updateVisibility)
   }, [])
 
+  function commitMissionReport(next: MissionReportData) {
+    missionReportRef.current = next
+    setMissionReport(next)
+    saveMissionReport(next)
+  }
+
+  function replayCampaign() {
+    saveMissionReport(missionReportRef.current)
+    const archived = archiveAndResetActiveSaves()
+    if (!archived.ok) { window.alert(archived.message); return }
+    window.location.reload()
+  }
+
   function addJournalEntry(entry: string) {
     setProgress((current) => ({ ...current, journal: [entry, ...current.journal].slice(0, 30) }))
+  }
+
+  function requestEarthStormAdvice() {
+    const before = survivalRef.current
+    if (before.sol !== 4 || before.solMinute < 42 || before.earthStormRequestSentAt !== null) return
+    const next = { ...before, earthStormRequestSentAt: before.totalMinutes, earthStormReplyReceived: false }
+    survivalRef.current = next
+    setSurvival(next)
+    addJournalEntry('Sol 04 · Sent a storm-status request to Earth after Alex’s local warning. Estimated signal time: 22 minutes each way; the crew remains responsible for immediate shelter decisions.')
+  }
+
+  function waitForEarthStormAdvice() {
+    const before = survivalRef.current
+    const sentAt = before.earthStormRequestSentAt
+    if ((before.sol !== 4 && before.sol !== 5) || sentAt === null || before.earthStormReplyReceived) return
+    const remaining = Math.max(0, sentAt + 44 - before.totalMinutes)
+    if (remaining <= 0) return
+    const sheltered = Boolean(interiorBuildingId)
+    let advanced = before
+    let advancedColony = colonyRef.current
+    let remainingMinutes = remaining
+    while (remainingMinutes > 0.0001) {
+      const nextSurvival = advanceSurvival(advanced, Math.min(1, remainingMinutes), sheltered)
+      const stepElapsed = Math.max(0, nextSurvival.totalMinutes - advanced.totalMinutes)
+      if (stepElapsed <= 0) break
+      const nextColony = advanceColony(advancedColony, nextSurvival, stepElapsed, stormIntensityAt(nextSurvival.solMinute), sheltered, advanced.solMinute)
+      advanced = nextColony.survival
+      advancedColony = nextColony.colony
+      remainingMinutes -= stepElapsed
+    }
+    const elapsed = Math.max(0, advanced.totalMinutes - before.totalMinutes)
+    if (elapsed <= 0) return
+    survivalRef.current = advanced
+    colonyRef.current = advancedColony
+    setSurvival(advanced)
+    setColony(advancedColony)
+    addJournalEntry(`Sol 04 · Waited ${elapsed.toFixed(0)} in-game minutes for Earth’s reply while ${sheltered ? 'inside shelter' : 'on the surface'}. ${advanced.earthStormReplyReceived ? 'The delayed reply arrived; normal resource use and storm conditions continued during the wait.' : 'The reply is still in transit; time and conditions continue in the next Sol.'}`)
+  }
+
+  function recordRadiationPlan(plan: RadiationPlan) {
+    const before = survivalRef.current
+    const beforeColony = colonyRef.current
+    if (before.sol !== 7 || beforeColony.radiationPlan || before.solMinute >= 1439) return
+    const elapsedRequested = Math.min(60, 1439 - before.solMinute)
+    const inProgress = advanceSurvival(before, elapsedRequested, plan === 'shelter')
+    const elapsed = Math.max(0, inProgress.totalMinutes - before.totalMinutes)
+    if (elapsed <= 0) return
+    const advanced = advanceColony(beforeColony, inProgress, elapsed, stormIntensityAt(inProgress.solMinute), plan === 'shelter', before.solMinute)
+    const wellnessCost = plan === 'eva' ? radiationPlanWellnessCost(CURIOSITY_RAD_REFERENCE.doseRateMicroGyPerDay, beforeColony.radiationProtection, elapsed) : 0
+    const crew = wellnessCost > 0
+      ? Object.fromEntries(Object.entries(advanced.survival.crew).map(([id, member]) => [id, { ...member, wellness: Math.max(0, member.wellness - wellnessCost) }])) as SurvivalState['crew']
+      : advanced.survival.crew
+    const nextSurvival = { ...advanced.survival, crew }
+    const nextColony = { ...advanced.colony, radiationPlan: plan }
+    const sensorEquivalent = CURIOSITY_RAD_REFERENCE.doseRateMicroGyPerDay * elapsed / 1440
+    const planName = plan === 'shelter' ? 'sheltered for the hour' : 'continued the one-hour EVA'
+    const impact = plan === 'shelter' ? 'No extra Sol 7 scenario wellness cost was applied.' : `The illustrative game rule reduced crew wellness by ${wellnessCost.toFixed(2)} points, moderated by the colony protection index (${Math.round(beforeColony.radiationProtection)}%).`
+    const entry = `Sol 07 · Curiosity RAD planning: crew ${planName}. NASA’s early-mission reference was about ${CURIOSITY_RAD_REFERENCE.doseRateMicroGyPerDay} μGy/day; at that same average, ${elapsed.toFixed(0)} minutes corresponds to about ${sensorEquivalent.toFixed(1)} μGy at the detector. ${impact} This wellness rule is fictional and is not a human-dose estimate.`
+    survivalRef.current = nextSurvival
+    colonyRef.current = nextColony
+    setSurvival(nextSurvival)
+    setColony(nextColony)
+    setColonyNotice(plan === 'shelter' ? 'Radiation plan recorded · shelter chosen for one hour.' : `Radiation plan recorded · EVA chosen; −${wellnessCost.toFixed(2)} game wellness points.`)
+    addJournalEntry(entry)
   }
 
   function applyColonyAction(result: { colony: ColonyState; survival: SurvivalState; ok: boolean; message: string }) {
@@ -531,8 +677,16 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
     if (!missionReady) return
     if (survival.sol === 10) {
       const ending = chooseEnding(survival, progress, colony)
-      setSurvival((current) => ({ ...current, ending, completedSols: current.completedSols.includes(10) ? current.completedSols : [...current.completedSols, 10], missionHistory: current.missionHistory.some((entry) => entry.startsWith('Sol 10')) ? current.missionHistory : [...current.missionHistory, `Sol 10 · ${sol.debrief}`].slice(-10) }))
+      const finalState = { ...survivalRef.current, ending, completedSols: survivalRef.current.completedSols.includes(10) ? survivalRef.current.completedSols : [...survivalRef.current.completedSols, 10], missionHistory: survivalRef.current.missionHistory.some((entry) => entry.startsWith('Sol 10')) ? survivalRef.current.missionHistory : [...survivalRef.current.missionHistory, `Sol 10 · ${sol.debrief}`].slice(-10) }
+      survivalRef.current = finalState
+      setSurvival(finalState)
+      const science = readScienceProgress()
+      const analyses = Object.values(science.sampleAnalyses).filter((sample) => sample?.status === 'complete').length
+      const completedReport = recordSolSnapshot(missionReportRef.current, 10, finalState, progress, { samplesCollected: progress.collectedSamples.length, samplesAnalysed: analyses, recordsUnlocked: science.unlockedEntryIds.length, challengesDone: science.completedChallengeIds.length })
+      commitMissionReport(completedReport)
       setDebriefOpen(true)
+      setMissionReportOpen(true)
+      audio.current?.playCampaignCompleteCue()
       return
     }
     const before = survivalRef.current
@@ -543,12 +697,21 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
     colonyRef.current = next.colony
     setSurvival(next.survival)
     setColony(next.colony)
+    const science = readScienceProgress()
+    const analyses = Object.values(science.sampleAnalyses).filter((sample) => sample?.status === 'complete').length
+    const completedReport = recordSolSnapshot(missionReportRef.current, before.sol, next.survival, progress, { samplesCollected: progress.collectedSamples.length, samplesAnalysed: analyses, recordsUnlocked: science.unlockedEntryIds.length, challengesDone: science.completedChallengeIds.length })
+    commitMissionReport(completedReport)
     setDebriefOpen(true)
   }
 
   function recordDecision(decision: CampaignDecision) {
-    setSurvival((current) => applyCampaignDecision(current, decision))
-    addJournalEntry(`Sol 9 campaign priority recorded: ${decision}.`)
+    const before = survivalRef.current
+    if (before.sol !== 9 || before.decisions.length > 0) return
+    const effects = previewCampaignDecisionEffects(before, decision)
+    const next = applyCampaignDecision(before, decision)
+    survivalRef.current = next
+    setSurvival(next)
+    addJournalEntry(`SOL 09 DECISION RECEIPT · ${campaignDecisionLabel(decision)} · TRADE-OFF APPLIED: ${effects.join(' | ')}`)
   }
 
   function restAtHabitat() {
@@ -572,6 +735,7 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
   const hudDistance = hudTarget ? Math.hypot(hudTarget[0] - playerTelemetry.x, hudTarget[2] - playerTelemetry.z) : null
   const hudBearing = hudTarget ? (Math.round((Math.atan2(hudTarget[0] - playerTelemetry.x, -(hudTarget[2] - playerTelemetry.z)) * 180 / Math.PI + 360) % 360)).toString().padStart(3, '0') : '---'
   const marsTime = `${String(Math.floor(survival.solMinute / 60)).padStart(2, '0')}:${String(survival.solMinute % 60).padStart(2, '0')}`
+  const earthStormReplyMinutes = survival.earthStormRequestSentAt === null || survival.earthStormReplyReceived ? 0 : Math.max(0, Math.ceil(survival.earthStormRequestSentAt + 44 - survival.totalMinutes))
   const marsTemp = Math.round(-63 + Math.sin(survival.solMinute / 1440 * Math.PI * 2) * 11 + stormIntensity * 4)
   const windDirection = ['NNE', 'ENE', 'ESE', 'SSE', 'SSW', 'WSW', 'WNW', 'NNW'][Math.floor(survival.solMinute / 180) % 8]
   const windSpeed = Math.round(3 + stormIntensity * 48)
@@ -584,7 +748,7 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
       case 4: return survival.shelteredSols.includes(4) ? 100 : 0
       case 5: return ratio(Number(progress.inspected.includes('grow-lights')) + Number(survival.equipment.greenhouse >= 60) + Number(survival.resources.food >= 15), 3)
       case 6: return Math.round(Math.min(2, progress.collectedSamples.length) / 2 * 50 + (progress.roverTripComplete ? 50 : 0))
-      case 7: return ratio(new Set(survival.maintenanceLog).size, 3)
+      case 7: return ratio(new Set(survival.maintenanceLog).size + Number(colony.radiationPlan !== null), 4)
       case 8: return Math.round(Object.values(survival.resources).filter((value) => value >= 20).length / Object.keys(survival.resources).length * 50 + (averageWellness >= 40 ? 50 : Math.min(50, averageWellness / 40 * 50)))
       case 9: return survival.decisions.length > 0 ? 100 : 0
       default: return 100
@@ -619,6 +783,7 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
 
     function onKeyDown(event: KeyboardEvent) {
       if (missionFailureReasons.length) return
+      if (missionReportOpen) return
       if (!isGameFocused()) return
       if (event.code === 'Escape') {
         if (colonyOpen) setColonyOpen(false)
@@ -672,7 +837,7 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
       window.removeEventListener('blur', onWindowBlur)
       controls.current.keys.clear()
     }
-  }, [onExit, journalOpen, activeTarget, interiorBuildingId, roverDriving, colonyOpen, settingsOpen, missionFailureReasons.length])
+  }, [onExit, journalOpen, activeTarget, interiorBuildingId, roverDriving, colonyOpen, settingsOpen, missionFailureReasons.length, missionReportOpen])
 
   function onPointerDown(event: ReactPointerEvent<HTMLDivElement>) {
     if (missionFailureReasons.length) return
@@ -784,6 +949,21 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
               onFootstep={(surface: FootstepSurface, running, inside) => audio.current?.playFootstep(surface, running, inside)}
               onMotion={(x, z, speed) => {
                 const now = performance.now()
+                const mode = interiorBuildingId ? `inside:${interiorBuildingId}` : roverDriving ? 'rover' : 'walk'
+                const previous = movementSample.current
+                if (previous && previous.mode === mode) {
+                  const segment = Math.hypot(x - previous.x, z - previous.z)
+                  if (segment > 0.004 && segment < 2.5) {
+                    const currentReport = missionReportRef.current
+                    if (mode === 'rover') missionReportRef.current = { ...currentReport, distanceRover: currentReport.distanceRover + segment }
+                    else if (mode === 'walk') missionReportRef.current = { ...currentReport, distanceWalked: currentReport.distanceWalked + segment }
+                  }
+                }
+                movementSample.current = { x, z, mode }
+                if (now - reportLastFlushAt.current >= 5000) {
+                  reportLastFlushAt.current = now
+                  commitMissionReport(missionReportRef.current)
+                }
                 if (now - hudMotionUpdateAt.current >= 100) {
                   hudMotionUpdateAt.current = now
                   setPlayerTelemetry({ x, z, speed })
@@ -840,8 +1020,10 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
             <small>MISSION OBJECTIVE · SOL {String(survival.sol).padStart(2, '0')}</small>
             <strong>{survival.sol === 1 && progress.roverTripComplete ? 'Survey marker reached' : objective}</strong>
             <div className="mars-objective-progress" role="progressbar" aria-label="Campaign objective progress" aria-valuemin={0} aria-valuemax={100} aria-valuenow={objectiveProgress}><i><b style={{ width: `${objectiveProgress}%` }} /></i><span>{objectiveProgress}%</span></div>
-            <div className="mars-objective-meta"><span>{hudDistance !== null ? `DIST ${hudDistance.toFixed(0)} M · BRG ${hudBearing}°` : roverDriving ? `BATTERY ${roverBattery}% · TRIP ${roverDistance} M` : 'OBJECTIVE RECORDED'}</span><span className="mars-sample-pill">{progress.collectedSamples.length} SAMPLES LOGGED</span></div>
-            {missionReady && <button className="mars-objective-complete" type="button" onClick={completeSol}>{survival.sol === 10 ? 'Complete campaign' : 'End Sol · Open debrief'}</button>}
+            <div className="mars-objective-meta"><span>{hudDistance !== null ? `DIST ${hudDistance.toFixed(0)} M · BRG ${hudBearing}°` : roverDriving ? `BATTERY ${roverBattery}% · TRIP ${roverDistance} M` : 'OBJECTIVE RECORDED'}</span><span className="mars-sample-pill">{progress.collectedSamples.length} SAMPLES LOGGED</span>{survival.sol === 4 && survival.earthStormRequestSentAt !== null && !survival.earthStormReplyReceived && <span className="mars-comm-pending">EARTH REPLY · {earthStormReplyMinutes} GAME MIN</span>}</div>
+            {survival.sol === 7 && !colony.radiationPlan && <button className="mars-objective-complete" type="button" onClick={() => setJournalOpen(true)}>Review RAD data · Journal</button>}
+            {survival.ending && <button className="mars-objective-complete" type="button" onClick={() => setMissionReportOpen(true)}>View mission report</button>}
+            {missionReady && !survival.ending && <button className="mars-objective-complete" type="button" onClick={completeSol}>{survival.sol === 10 ? 'Complete campaign' : 'End Sol · Open debrief'}</button>}
           </div>
           <div className="mars-game-hud__actions" aria-label="Game menus">
             {roverDriving && <span className="mars-rover-status">ROVER · {roverBattery}% POWER</span>}
@@ -1020,7 +1202,46 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
               return `${name} ${readiness}%`
             }).join(' · ')}</strong><span>Wellness, morale, and fatigue combine into this fictional readiness indicator.</span></div>
             <div className="mars-journal-card__objective"><span>SOL SUPPORT TASKS</span><strong>{sol.supportingObjectives.join(' · ')}</strong><span>{sol.crewReport}</span></div>
-            {survival.sol === 9 && !survival.decisions.length && <div className="mars-game-card__actions"><button type="button" onClick={() => recordDecision('resilience')}>Protect crew reserves</button><button type="button" onClick={() => recordDecision('research')}>Prioritize research</button><button type="button" onClick={() => recordDecision('infrastructure')}>Reinforce infrastructure</button></div>}
+            {(survival.sol === 4 || survival.sol === 5 && survival.earthStormRequestSentAt !== null) && <section className="mars-comm-briefing" aria-label="Earth and Mars delayed radio message">
+              <span className="mars-comm-briefing__eyebrow">OUTPOST RADIO · SOL 04 DUST FRONT</span>
+              <h3>Earth–Mars communication delay</h3>
+              <p>Signals travel at light speed, but Mars is far away. NASA gives a range of about 4–24 minutes one way; this training scenario uses 22 minutes each way, or about 44 in-game minutes for a request and reply. Alex’s local storm warning is available immediately, so the crew can act without waiting for Earth.</p>
+              {survival.earthStormReplyReceived
+                ? <div className="mars-comm-briefing__message" role="status"><strong>DELAYED REPLY RECEIVED</strong><span>Mission Control confirms: follow the local dust warning and shelter before the peak. The crew remains responsible for immediate decisions.</span></div>
+                : survival.earthStormRequestSentAt !== null
+                  ? <><div className="mars-comm-briefing__pending" role="status"><strong>REQUEST IN TRANSIT · {earthStormReplyMinutes} GAME MIN REMAINING</strong><span>The game clock and resource use continue. On Sol 4, you can still shelter or carry on local work while the signal travels.</span></div><div className="mars-game-card__actions"><button type="button" onClick={waitForEarthStormAdvice}>Wait · {earthStormReplyMinutes} game min</button></div><p className="mars-comm-briefing__footnote">Waiting advances time using your current shelter status. Storm effects apply while the Sol 4 dust front is active.</p></>
+                  : survival.solMinute < 42
+                    ? <p className="mars-comm-briefing__pending">Local weather watch is active. Alex’s immediate dust-front alert is expected at Sol-minute 42. Earth guidance is optional and cannot replace the crew’s local response.</p>
+                    : survival.solMinute < 54
+                      ? <><div className="mars-comm-briefing__pending"><strong>LOCAL ALERT ACTIVE · SOL {String(survival.sol).padStart(2, '0')} · {marsTime}</strong><span>Earth’s reply would arrive about 44 in-game minutes after a request, after the storm begins. Shelter on the local alert; request Earth’s confirmation only if you still want it.</span></div><div className="mars-game-card__actions"><button type="button" onClick={requestEarthStormAdvice}>Request Earth confirmation</button></div></>
+                      : <p className="mars-comm-briefing__pending">The storm is underway. Use the local alert and shelter now; a new Earth request would arrive too late to guide this response.</p>}
+              {survival.sol === 4 && survival.stormResponseStatus === 'sheltered-before-peak' && <p className="mars-comm-briefing__outcome">LOCAL DECISION · Crew sheltered before the peak. Earth advice was not needed for the immediate response.</p>}
+              {survival.sol === 4 && survival.stormResponseStatus === 'outside-at-peak' && <p className="mars-comm-briefing__outcome is-warning">STORM PEAK · Crew was outside; −2 fictional wellness points were applied. This is a gameplay indicator, not a real health or radiation measure.</p>}
+              <a className="mars-comm-briefing__source" href="https://www.nasa.gov/missions/tech-demonstration/space-communications-7-things-you-need-to-know/" target="_blank" rel="noreferrer">NASA: Space communication timing ↗</a>
+            </section>}
+            {survival.sol === 7 && <section className="mars-rad-briefing" aria-label="Curiosity radiation data planning">
+              <span className="mars-rad-briefing__eyebrow">ARCHIVED NASA DATA · CURIOSITY RAD</span>
+              <h3>Plan one hour on the surface</h3>
+              <p>During Curiosity’s first 10 months on Mars ({CURIOSITY_RAD_REFERENCE.observationPeriod}), RAD measurements were near <strong>{CURIOSITY_RAD_REFERENCE.doseRateMicroGyPerDay} μGy/day absorbed dose</strong>. At the same 24-hour average, one hour corresponds to about <strong>{(CURIOSITY_RAD_REFERENCE.doseRateMicroGyPerDay / 24).toFixed(1)} μGy at the detector</strong>. This is a historical surface measurement, not a crew dose, forecast, or medical limit.</p>
+              <p className="mars-rad-briefing__model">Your colony protection index is {Math.round(colony.radiationProtection)} / 100 (fictional). It moderates the game-only crew-wellness effect for an EVA. Choosing shelter spends the same hour and advances normal colony resources and tasks.</p>
+              {colony.radiationPlan ? <div className="mars-rad-briefing__recorded" role="status">Plan recorded: {colony.radiationPlan === 'shelter' ? 'shelter for one hour' : 'one-hour EVA'} · check the mission log for the result.</div> : <div className="mars-game-card__actions"><button type="button" onClick={() => recordRadiationPlan('shelter')}>Shelter · 1 hour</button><button type="button" onClick={() => recordRadiationPlan('eva')}>Continue EVA · 1 hour</button></div>}
+              <nav className="mars-rad-briefing__sources" aria-label="Radiation data sources"><a href={CURIOSITY_RAD_REFERENCE.sourceUrl} target="_blank" rel="noreferrer">NASA measurement summary ↗</a><a href={CURIOSITY_RAD_REFERENCE.datasetUrl} target="_blank" rel="noreferrer">Archived RAD dataset ↗</a></nav>
+            </section>}
+            {survival.sol === 9 && !survival.decisions.length && <section className="mars-decision-planner" aria-label="Compare Sol 9 campaign priorities">
+              <span className="mars-decision-planner__eyebrow">COMPARE THE TRADE-OFFS</span>
+              <p>These previews use your current values and apply the game’s resource caps. Choose one priority; its actual before-and-after changes will be saved to the Journal and campaign report.</p>
+              {(['resilience', 'research', 'infrastructure'] as const).map((decision) => <article className="mars-decision-option" key={decision}>
+                <div><strong>{campaignDecisionLabel(decision)}</strong><ul>{previewCampaignDecisionEffects(survival, decision).map((effect) => <li key={effect}>{effect}</li>)}</ul></div>
+                <button type="button" onClick={() => recordDecision(decision)}>Choose priority</button>
+              </article>)}
+              <small>Point changes are game values. Your final outcome also depends on the rest of the colony’s condition and campaign progress.</small>
+            </section>}
+            {survival.sol === 9 && survival.decisions.length > 0 && <section className="mars-decision-planner is-recorded" aria-label="Recorded Sol 9 decision outcome">
+              <span className="mars-decision-planner__eyebrow">SOL 09 · DECISION OUTCOME</span>
+              <strong>{campaignDecisionLabel(survival.decisions[0])}</strong>
+              <p>{campaignDecisionReceipt ? campaignDecisionReceipt.replace('SOL 09 DECISION RECEIPT · ', '') : 'This saved campaign predates detailed decision receipts; its chosen priority and resulting campaign state are still saved.'}</p>
+              <small>These are the values changed by this choice. The final outcome calculation also considers the rest of the mission record.</small>
+            </section>}
             {interiorBuildingId === 'habitat' && <button type="button" onClick={restAtHabitat}>Rest crew · 4 hour recovery</button>}
             <div className="mars-journal-card__objective"><span>CAMPAIGN RECORD</span><strong>{survival.completedSols.length} SOLS COMPLETE · {progress.collectedSamples.length} GEOLOGY SAMPLES · {new Set(survival.maintenanceLog).size} SYSTEMS MAINTAINED · {survival.researchPoints.toFixed(1)} RESEARCH</strong><span>{survival.decisions.map((decision) => decision.replace('-', ' ')).join(', ') || 'No campaign decision recorded yet'}</span></div>
             {survival.missionHistory.length > 0 && <><div className="mars-building-panel__topline"><span>MISSION HISTORY</span><span>{survival.missionHistory.length} DEBRIEFS</span></div><ul>{survival.missionHistory.slice().reverse().map((entry, index) => <li key={`${entry}-${index}`}>{entry}</li>)}</ul></>}
@@ -1029,7 +1250,7 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
           </aside>
         )}
 
-        {debriefOpen && <div className="mars-debrief-backdrop"><aside className="mars-game-card mars-debrief-card" role="dialog" aria-modal="true" aria-label="Sol debrief">
+        {debriefOpen && !missionReportOpen && <div className="mars-debrief-backdrop"><aside className="mars-game-card mars-debrief-card" role="dialog" aria-modal="true" aria-label="Sol debrief">
           <div className="mars-building-panel__topline"><span>{survival.ending ? 'CAMPAIGN ASSESSMENT' : 'SOL DEBRIEF'}</span><span>{survival.ending ? 'SOL 10 COMPLETE' : `SOL ${String(survival.sol - 1).padStart(2, '0')} COMPLETE`}</span></div>
           <h2>{survival.ending ? CAMPAIGN_ENDINGS[survival.ending].title : TEN_SOL_CAMPAIGN[Math.max(0, survival.sol - 2)].title}</h2>
           <p>{survival.ending ? CAMPAIGN_ENDINGS[survival.ending].text : TEN_SOL_CAMPAIGN[Math.max(0, survival.sol - 2)].debrief}</p>
@@ -1038,23 +1259,7 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
           {survival.ending ? <button type="button" onClick={() => setDebriefOpen(false)}>Return to Mars</button> : <button type="button" onClick={() => setDebriefOpen(false)}>Begin Sol {String(survival.sol).padStart(2, '0')}</button>}
         </aside></div>}
 
-        {missionFailureReasons.length > 0 && <div className="mars-failure-backdrop" onPointerDown={(event) => event.stopPropagation()}>
-          <section className="mars-failure-card" role="alertdialog" aria-modal="true" aria-labelledby="mars-failure-title">
-            <small>OUTPOST ALPHA · CRITICAL RESERVE FAILURE</small>
-            <h2 id="mars-failure-title">MISSION FAILED</h2>
-            <p>Mission operations have stopped because a critical survival reserve reached zero.</p>
-            <ul>{missionFailureReasons.map((id) => <li key={id}><strong>{CRITICAL_RESOURCE_FAILURES[id].title}</strong><span>{CRITICAL_RESOURCE_FAILURES[id].reason}</span><em>Solution: {CRITICAL_RESOURCE_SOLUTIONS[id]}</em></li>)}</ul>
-            <div className="mars-failure-actions">
-              <button type="button" onClick={() => {
-                localStorage.setItem(SURVIVAL_SAVE_KEY, JSON.stringify(INITIAL_SURVIVAL_STATE))
-                localStorage.setItem(COLONY_SAVE_KEY, JSON.stringify(INITIAL_COLONY_STATE))
-                localStorage.setItem(MISSION_PROGRESS_KEY, JSON.stringify(EMPTY_MISSION_PROGRESS))
-                window.location.reload()
-              }}>Replay Mission</button>
-              <button type="button" className="mars-failure-exit" onClick={onExit}>Return to Outpost</button>
-            </div>
-          </section>
-        </div>}
+        {missionFailureReasons.length > 0 && !missionReportOpen && <div className="mars-failure-backdrop"><section className="mars-failure-card" role="alertdialog" aria-modal="true"><h2>MISSION FAILED</h2><p>The full campaign record is saved. Open it from the outpost by continuing the campaign.</p><button type="button" onClick={onExit}>Return to Outpost</button></section></div>}
 
         <div key={transitionSerial} className="mars-mode-transition" aria-hidden="true" />
 
@@ -1078,7 +1283,7 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
         />}
         <ScienceHub
           open={scienceOpen}
-          onClose={() => setScienceOpen(false)}
+          onClose={() => { setScienceOpen(false); if (missionFailureReasons.length) setMissionReportOpen(true) }}
           sol={survival.sol}
           gameMinute={survival.totalMinutes}
           atResearchLab={interiorBuildingId === 'laboratory'}
@@ -1121,6 +1326,20 @@ function MarsGameScreen({ siteId, onExit }: MarsGameScreenProps) {
             }))
           }}
         />
+        {missionReportOpen && <CampaignReportScreen
+          report={missionReport}
+          survival={survival}
+          colony={colony}
+          progress={progress}
+          science={readScienceProgress()}
+          siteId={siteId}
+          ending={survival.ending}
+          failureReasons={missionFailureReasons.map((id) => CRITICAL_RESOURCE_FAILURES[id].title)}
+          failureSolutions={missionFailureReasons.map((id) => CRITICAL_RESOURCE_SOLUTIONS[id])}
+          onClose={() => { if (missionFailureReasons.length) onExit(); else { setMissionReportOpen(false); setDebriefOpen(false) } }}
+          onPlayAgain={replayCampaign}
+          onViewScience={() => { setMissionReportOpen(false); setDebriefOpen(false); setScienceOpen(true) }}
+        />}
       </>
     </main>
   )

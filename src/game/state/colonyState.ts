@@ -6,6 +6,7 @@ export const EXPANSION_IDS = ['habitat-extension', 'advanced-greenhouse', 'water
 export type ExpansionId = typeof EXPANSION_IDS[number]
 export type MaterialId = 'alloy' | 'parts' | 'regolith' | 'bio-supplies'
 export type ColonyPriority = 'life-support' | 'greenhouse' | 'research' | 'battery' | 'maintenance'
+export type RadiationPlan = 'shelter' | 'eva'
 export type CrewAssignment = { crew: 'ryan' | 'emma' | 'alex'; task: 'maintenance' | 'greenhouse' | 'research' | 'logistics'; minutesLeft: number } | null
 export type CropId = 'leafy-greens' | 'radish' | 'potato'
 export type CropPlot = { id: string; crop: CropId; progress: number; condition: number }
@@ -19,6 +20,7 @@ export type ColonyState = {
   crops: CropPlot[]
   nextCropId: number
   radiationProtection: number
+  radiationPlan: RadiationPlan | null
   solarDust: number
   priorities: Record<ColonyPriority, number>
   assignment: CrewAssignment
@@ -30,7 +32,7 @@ export const INITIAL_COLONY_STATE: ColonyState = {
   version: 1,
   materials: { alloy: 30, parts: 22, regolith: 55, 'bio-supplies': 18 },
   upgrades: { habitat: 1, greenhouse: 1, laboratory: 1, 'solar-array': 1, 'battery-storage': 1, 'rover-garage': 1 },
-  expansions: [], construction: null, crops: [], nextCropId: 1, radiationProtection: 12, solarDust: 0,
+  expansions: [], construction: null, crops: [], nextCropId: 1, radiationProtection: 12, radiationPlan: null, solarDust: 0,
   priorities: { 'life-support': 5, greenhouse: 3, research: 2, battery: 4, maintenance: 3 },
   assignment: null, event: null, completedActions: 0,
 }
@@ -61,6 +63,21 @@ export const CROP_INFO: Record<CropId, { name: string; duration: number; water: 
 
 export const BUILDING_UPGRADE_BASE_MINUTES = 90
 export const BUILDING_UPGRADE_PER_LEVEL_MINUTES = 30
+export const CURIOSITY_RAD_REFERENCE = {
+  doseRateMicroGyPerDay: 210,
+  observationPeriod: 'August 2012–June 2013',
+  sourceUrl: 'https://science.nasa.gov/resource/radiation-measurements-on-mars/',
+  datasetUrl: 'https://pds-ppi.igpp.ucla.edu/bundle/MSL-M-RAD-3-RDR-V1.0',
+} as const
+
+// Illustrative game rule only; this does not convert detector readings into crew dose or medical risk.
+export function radiationPlanWellnessCost(rateMicroGyPerDay: number, protectionIndex: number, minutes: number): number {
+  const rateFactor = Math.max(0, rateMicroGyPerDay) / CURIOSITY_RAD_REFERENCE.doseRateMicroGyPerDay
+  const exposedHours = Math.max(0, minutes) / 60
+  const unprotectedFraction = 1 - Math.max(0, Math.min(100, protectionIndex)) / 100
+  return Math.round(rateFactor * exposedHours * unprotectedFraction * 2 * 100) / 100
+}
+
 export function buildingUpgradeDuration(level: number) {
   return BUILDING_UPGRADE_BASE_MINUTES + BUILDING_UPGRADE_PER_LEVEL_MINUTES * level
 }
@@ -101,6 +118,7 @@ export function readColonyState(): ColonyState {
       crops: Array.isArray(saved.crops) ? saved.crops.filter((crop) => crop && typeof crop.id === 'string' && crop.crop in CROP_INFO).map((crop) => ({ ...crop, progress: Math.max(0, Math.min(100, crop.progress || 0)), condition: Math.max(0, Math.min(100, crop.condition || 0)) })) : [],
       construction: saved.construction && (saved.construction.kind === 'upgrade' || saved.construction.kind === 'expansion') && Number.isFinite(saved.construction.minutesLeft) ? saved.construction : null,
       radiationProtection: Number.isFinite(saved.radiationProtection) ? Math.max(0, Math.min(100, saved.radiationProtection!)) : 12,
+      radiationPlan: saved.radiationPlan === 'shelter' || saved.radiationPlan === 'eva' ? saved.radiationPlan : null,
       solarDust: Number.isFinite(saved.solarDust) ? Math.max(0, Math.min(100, saved.solarDust!)) : 0,
       nextCropId: Number.isInteger(saved.nextCropId) ? Math.max(1, saved.nextCropId!) : 1,
       completedActions: Number.isInteger(saved.completedActions) ? Math.max(0, saved.completedActions!) : 0,

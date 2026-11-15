@@ -5,6 +5,7 @@ import {
 } from '../data/landingSites'
 
 export const CAMPAIGN_STATE_KEY = 'mars-outpost-alpha-campaign-v1'
+export const FIRST_STEPS_GUIDE_KEY = 'mars-outpost-alpha-first-steps-dismissed-v1'
 const LEGACY_CAMPAIGN_KEY = 'mars-outpost-alpha-part1'
 
 export type CampaignState = {

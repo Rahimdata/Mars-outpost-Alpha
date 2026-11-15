@@ -46,6 +46,9 @@ export type SurvivalState = {
   notice: string
   noticeMinutes: number
   stormDamageApplied: boolean
+  earthStormRequestSentAt: number | null
+  earthStormReplyReceived: boolean
+  stormResponseStatus: 'sheltered-before-peak' | 'outside-at-peak' | null
   ending: EndingId | null
 }
 
@@ -81,6 +84,9 @@ export const INITIAL_SURVIVAL_STATE: SurvivalState = {
   notice: '',
   noticeMinutes: 0,
   stormDamageApplied: false,
+  earthStormRequestSentAt: null,
+  earthStormReplyReceived: false,
+  stormResponseStatus: null,
   ending: null,
 }
 
@@ -143,6 +149,9 @@ export function readSurvivalState(): SurvivalState {
       notice: typeof parsed.notice === 'string' ? parsed.notice : '',
       noticeMinutes: Number.isFinite(parsed.noticeMinutes) ? Math.max(0, parsed.noticeMinutes!) : 0,
       stormDamageApplied: Boolean(parsed.stormDamageApplied),
+      earthStormRequestSentAt: Number.isFinite(parsed.earthStormRequestSentAt) ? Math.max(0, parsed.earthStormRequestSentAt!) : null,
+      earthStormReplyReceived: Boolean(parsed.earthStormReplyReceived),
+      stormResponseStatus: parsed.stormResponseStatus === 'sheltered-before-peak' || parsed.stormResponseStatus === 'outside-at-peak' ? parsed.stormResponseStatus : null,
       ending: parsed.ending === 'home' || parsed.ending === 'foundation' || parsed.ending === 'lesson' ? parsed.ending : null,
     }
   } catch {
@@ -200,11 +209,22 @@ export function advanceSurvival(state: SurvivalState, minutes: number, sheltered
     }
 
     next = { ...next, solMinute: minute, totalMinutes: next.totalMinutes + step, resources, crew, noticeMinutes: Math.max(0, next.noticeMinutes - step) }
-    if (sheltered && intensity > 0.55 && !next.shelteredSols.includes(next.sol)) {
+    if (sheltered && minute >= 54 && intensity > 0.55 && !next.shelteredSols.includes(next.sol)) {
       next = withNotice({ ...next, shelteredSols: [...next.shelteredSols, next.sol] }, 'Shelter protocol recorded. Crew exposure reduced.')
     }
     if (minute >= 42 && minute - step < 42) next = withNotice(next, 'DUST FRONT APPROACHING · Move inside before visibility drops.')
-    if (minute >= 54 && minute - step < 54) next = withNotice(next, 'DUST STORM ACTIVE · Solar output reduced. Shelter is available in colony buildings.')
+    if (minute >= 54 && minute - step < 54) {
+      if (next.sol === 4 && !next.stormResponseStatus) {
+        if (sheltered) next = withNotice({ ...next, stormResponseStatus: 'sheltered-before-peak' }, `Dust front peak · crew acted on the local warning and sheltered. ${next.earthStormRequestSentAt !== null ? 'Earth guidance is still delayed.' : 'No Earth reply was needed for this immediate action.'}`)
+        else {
+          const crew = Object.fromEntries(Object.entries(next.crew).map(([id, member]) => [id, { ...member, wellness: bounded(member.wellness - 2, 0) }])) as CrewRoster
+          next = withNotice({ ...next, crew, stormResponseStatus: 'outside-at-peak' }, 'Dust front peak · crew remained outside awaiting/working without shelter. Crew readiness −2 game points. Move inside.')
+        }
+      } else next = withNotice(next, 'DUST STORM ACTIVE · Solar output reduced. Shelter is available in colony buildings.')
+    }
+    if (next.earthStormRequestSentAt !== null && !next.earthStormReplyReceived && next.totalMinutes >= next.earthStormRequestSentAt + 44) {
+      next = withNotice({ ...next, earthStormReplyReceived: true }, 'DELAYED EARTH REPLY · Mission Control recommends following the local storm alert and sheltering before the peak.')
+    }
     if (minute >= 66 && minute - step < 66 && !next.stormDamageApplied) {
       const affected: EquipmentId = next.sol % 2 === 0 ? 'solar-array' : 'communications'
       const equipment = { ...next.equipment, [affected]: bounded(next.equipment[affected] - 5, 0) }
@@ -258,14 +278,19 @@ export function closeSol(state: SurvivalState): SurvivalState {
     solMinute: 0,
     crew,
     completedSols: [...state.completedSols, state.sol],
-    missionHistory: [...state.missionHistory, `Sol ${state.sol} · ${TEN_SOL_CAMPAIGN[state.sol - 1].debrief}`].slice(-10),
+    missionHistory: [...state.missionHistory, `Sol ${state.sol} · ${TEN_SOL_CAMPAIGN[state.sol - 1].debrief}${state.sol === 4 && state.stormResponseStatus === 'sheltered-before-peak' ? ` The crew used the local warning to shelter before the storm peak${state.earthStormRequestSentAt !== null ? ' while Earth guidance remained delayed.' : ' without waiting on Earth.'}` : state.sol === 4 && state.stormResponseStatus === 'outside-at-peak' ? ` The crew was outside at the storm peak and lost 2 fictional wellness points.${state.earthStormRequestSentAt !== null ? ' Earth’s response could not arrive before the storm peak.' : ''}` : ''}`].slice(-10),
     stormDamageApplied: false,
   }, `Sol ${state.sol} closed. Sol ${state.sol + 1} operations are ready.`)
 }
 
 export function applyCampaignDecision(state: SurvivalState, decision: CampaignDecision): SurvivalState {
   if (state.decisions.length) return state
-  let next: SurvivalState = { ...state, decisions: [decision] }
+  const next = applyCampaignDecisionEffects(state, decision)
+  return withNotice({ ...next, decisions: [decision] }, `Campaign priority recorded: ${decisionLabel(decision)}.`)
+}
+
+function applyCampaignDecisionEffects(state: SurvivalState, decision: CampaignDecision): SurvivalState {
+  let next = state
   if (decision === 'resilience') {
     next = { ...next, resources: { oxygen: bounded(next.resources.oxygen + 2, 100), water: bounded(next.resources.water + 10, 100), food: bounded(next.resources.food + 8, 100), energy: bounded(next.resources.energy + 8, 100) } }
   } else if (decision === 'research') {
@@ -275,7 +300,33 @@ export function applyCampaignDecision(state: SurvivalState, decision: CampaignDe
     const equipment = Object.fromEntries(Object.entries(next.equipment).map(([id, value]) => [id, bounded(value + 8, 100)])) as EquipmentCondition
     next = { ...next, equipment, resources: { ...next.resources, energy: bounded(next.resources.energy - 12, 0) }, maintenanceLog: [...next.maintenanceLog, 'habitat', 'solar-array', 'rover'] }
   }
-  return withNotice(next, `Campaign priority recorded: ${decisionLabel(decision)}.`)
+  return next
+}
+
+function formatEffectValue(value: number): string { return (Math.round(value * 10) / 10).toString() }
+function formatEffectDelta(value: number): string { return `${value > 0 ? '+' : ''}${formatEffectValue(value)}` }
+
+export function previewCampaignDecisionEffects(state: SurvivalState, decision: CampaignDecision): string[] {
+  const next = applyCampaignDecisionEffects(state, decision)
+  const delta = (after: number, before: number) => formatEffectDelta(after - before)
+  const percent = (id: ResourceId, label: string) => `${label}: ${formatEffectValue(state.resources[id])}% → ${formatEffectValue(next.resources[id])}% (${delta(next.resources[id], state.resources[id])} pp)`
+  if (decision === 'resilience') return [
+    percent('oxygen', 'O₂'), percent('water', 'H₂O'), percent('food', 'Food'), percent('energy', 'Power'),
+  ]
+  if (decision === 'research') return [
+    percent('energy', 'Power'),
+    `Research: ${formatEffectValue(state.researchPoints)} → ${formatEffectValue(next.researchPoints)} points (${delta(next.researchPoints, state.researchPoints)})`,
+    `Emma morale: ${formatEffectValue(state.crew.emma.morale)} → ${formatEffectValue(next.crew.emma.morale)}% (${delta(next.crew.emma.morale, state.crew.emma.morale)} pp)`,
+  ]
+  const ids = Object.keys(state.equipment) as EquipmentId[]
+  const equipmentAverage = (source: EquipmentCondition) => ids.reduce((sum, id) => sum + source[id], 0) / ids.length
+  const beforeAverage = equipmentAverage(state.equipment)
+  const afterAverage = equipmentAverage(next.equipment)
+  return [
+    percent('energy', 'Power'),
+    `Equipment average: ${formatEffectValue(beforeAverage)}% → ${formatEffectValue(afterAverage)}% (${delta(afterAverage, beforeAverage)} pp; individual systems cap at 100%)`,
+    'Maintenance log: +3 system records (habitat, solar array, rover)',
+  ]
 }
 
 export function chooseEnding(state: SurvivalState, progress: MissionProgress, colony?: { upgrades: Record<string, number>; expansions: string[] }): EndingId {

@@ -50,7 +50,3 @@ Requirements: Node.js and npm.
 
 ## Author 
 Mohd Rahim
-
-```bash
-npm install
-npm run dev
